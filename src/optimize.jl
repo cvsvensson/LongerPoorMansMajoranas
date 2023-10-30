@@ -11,12 +11,13 @@ Base.@kwdef struct Optimizer{f,r,i,t,ec}
     Method::Symbol = :probabilistic_descent
     PopulationSize::Int = 100
     TargetFitness::Float64 = 0.0
+    basis
 end
 
 
-cost_function(energies, reduced::Number; exp=12.0, minexcgap=0) = cost_reduced(reduced) + cost_energy(energies; exp, minexcgap)
-cost_energy(energies; minexcgap=0, exp) = cost_gapratio(gapratio(energies...); exp) + ((excgap(energies...) - minexcgap) < 0 ? 1 + 10.0^exp*abs(excgap(energies...) - minexcgap) : 0)
-cost_gapratio(gr; exp) = abs(gr) > 2 * 10.0^(-exp) ? 1.0 + 10^(exp) * abs2(gr) : abs2(gr)
+cost_function(gap, excgap, reduced::Number; exp=12.0, minexcgap=0) = cost_reduced(reduced) + cost_energy(gap, excgap; exp, minexcgap)
+cost_energy(gap, excgap; minexcgap=0, exp) = cost_gap(gap; exp) + ((excgap - minexcgap) < 0 ? 1 + 10.0^exp * abs(excgap - minexcgap) : 0)
+cost_gap(gap; exp) = abs(gap) > 2 * 10.0^(-exp) ? 1.0 + 10^(exp) * abs2(gap) : abs2(gap)
 cost_reduced(reduced) = reduced^2
 
 
@@ -24,8 +25,8 @@ cost_reduced(reduced) = reduced^2
 tracemode(opt::Optimizer) = opt.tracemode
 function cost(exp, opt::Optimizer)
     function _cost(args)
-        sol = fullsolve(opt.hamfunc(args...))
-        cost_function(sol.energies, opt.target(sol); exp, opt.minexcgap) + opt.extra_cost(args, exp)
+        sol = fullsolve(opt.hamfunc(args...), opt.basis)
+        cost_function(sol.gap, sol.excgap, opt.target(sol); exp, opt.minexcgap) + opt.extra_cost(args, exp)
     end
 end
 

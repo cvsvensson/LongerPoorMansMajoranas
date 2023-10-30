@@ -1,4 +1,4 @@
-module PoorMansManyBodyMajoranas
+module LongerPoorMansMajoranas
 using Reexport
 @reexport using QuantumDots, QuantumDots.BlockDiagonals, LinearAlgebra, BlackBoxOptim
 using QuantumDots, QuantumDots.BlockDiagonals, LinearAlgebra
@@ -8,13 +8,11 @@ using Folds
 
 export c, LD, LDf, MP, MPU, excgap
 export hamiltonian, cell_labels, fullsolve, reduced_similarity
-export Ψeven, Ψodd, ϵeven, ϵodd
 export Optimizer, get_sweet_spot
 export Transport
 export charge_stability_scan
 
 include("misc.jl")
-include("analytic.jl")
 include("optimize.jl")
 include("transport.jl")
 include("charge_stability.jl")
