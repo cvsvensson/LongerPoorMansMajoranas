@@ -22,10 +22,10 @@ function vectorize_arg(arg::Vector, c)
     2n - 1 == N && return [arg..., reverse(arg[begin:end-1])...]
     throw(ArgumentError("Don't know how to vectorize argument of length $n for $N sites"))
 end
-vectorize_arg(arg::Tuple, c) = arg
+vectorize_arg(arg::Tuple, c) = vectorize_arg([arg...], c)
 
 function hamiltonian(basis::FermionBdGBasis; parameters...)
-    BdGMatrix(QuantumDots.BD1_hamiltonian(basis; parameters...))
+    BdGMatrix(QuantumDots.BD1_hamiltonian(basis; parameters...); check = false)
 end
 function hamiltonian(basis::FermionBasis; parameters...)
     blockdiagonal(QuantumDots.BD1_hamiltonian(basis; parameters...), basis)
@@ -61,7 +61,7 @@ end
 function half_majorana_polarizations(majcoeffs, basis)
     keys1 = spatial_labels(basis)
     N = length(keys1)
-    n = div(N, 2)
+    n = 1#div(N, 2)
     keys1L = keys1[1:n]
     keys1R = keys1[end:-1:end-n+1]
     keysL = filter(k -> first(k) in keys1L, keys(basis))
@@ -88,21 +88,22 @@ end
 
 function fullsolve(H, basis::FermionBdGBasis; reduced=true, transport=missing, cutoff=1e-10)
     N = QuantumDots.nbr_of_fermions(basis)
-    es, ops = QuantumDots.enforce_ph_symmetry(eigen(H))
+    es, ops = diagonalize(H)
+    # es, ops = QuantumDots.enforce_ph_symmetry(eigen(H))
     if !QuantumDots.check_ph_symmetry(es, ops; cutoff)
         @warn "particle-hole symmetry not valid? $es \n $ops"
     end
     qps = map(op -> QuantumDots.QuasiParticle(op, basis), eachcol(ops))
     best_majorana = qps[N]
-    gs_parity = QuantumDots.ground_state_parity(es, ops)
+    gs_parity = QuantumDots.ground_state_parity(es, ops) |> real |> round
     gap = gs_parity == -1 ? es[N] : es[N+1]
-    excgap = es[N-1]
+    excgap = abs(es[N-1])
     gapratio = sign(gap)abs(gap / excgap)
     # lefthalflabels = filter(l -> Base.first(l) <= div(N, 4), keys(basis).values)
     majcoeffs = QuantumDots.majorana_coefficients(best_majorana)
     mps = half_majorana_polarizations(majcoeffs, basis)
     reduced = reduced_similarity(qps)
-    return (; gap, gapratio, reduced, mps, majcoeffs, excgap, energies=es)
+    return (; gap, gapratio, reduced, mps, majcoeffs, excgap, energies=es, parity=gs_parity)
 end
 
 
@@ -120,3 +121,26 @@ LDf(sol) = sum(sol.reduced.fermions)
 MP(sol) = 1 - (abs(sol.mps.left.mp) + abs(sol.mps.right.mp)) / 2
 MPU(sol) = 1 - (abs(sol.mps.left.mpu) + abs(sol.mps.right.mpu)) / 2
 
+
+function reflect(_p, N; pad=[])
+    p = collect(_p)
+    if length(p) == N
+        return [p..., pad...]
+    end
+    if iseven(N)
+        Nhalf = div(N, 2)
+        if length(p) == Nhalf
+            return [p..., reverse(p)..., pad...]
+        else
+            throw(ArgumentError("Length of p must be N or N÷2"))
+        end
+    end
+    if isodd(N)
+        Nhalf = div(N + 1, 2)
+        if length(p) == Nhalf
+            return [p..., reverse(p)[2:end]..., pad...]
+        else
+            throw(ArgumentError("Length of p must be N or N÷2"))
+        end
+    end
+end

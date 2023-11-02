@@ -5,10 +5,9 @@ using QuantumDots, QuantumDots.BlockDiagonals, LinearAlgebra
 using ForwardDiff, LinearSolve # For transport
 using Folds
 
-
 export c, LD, LDf, MP, MPU, excgap
 export hamiltonian, cell_labels, fullsolve, reduced_similarity
-export Optimizer, get_sweet_spot
+export Optimizer, get_sweet_spot, reflect
 export Transport
 export charge_stability_scan
 

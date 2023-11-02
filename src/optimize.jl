@@ -2,7 +2,7 @@ Base.@kwdef struct Optimizer{f,r,i,t,ec}
     hamfunc::f
     ranges::Vector{r}
     initials::Vector{i}
-    MaxTime::Int = 10
+    MaxTime::Float64 = 10.0
     minexcgap::Float64 = 0.0
     exps::Vector{Float64} = Float64.(collect(range(0.5, 3; length=4)))
     target::t = LD
