@@ -11,10 +11,10 @@ function plotmajcoeffs(ws, zs)
 end
 
 ##
-N = 5
-c1 = FermionBasis(1:N, (:↑, :↓); qn=QuantumDots.parity)
-c2 = FermionBdGBasis(1:N, (:↑, :↓))
-transport = Transport(QuantumDots.Pauli(), (; T=1 / 40, μ=(0.0, 0.0)))
+# N = 5
+# c1 = FermionBasis(1:N, (:↑, :↓); qn=QuantumDots.parity)
+# c2 = FermionBdGBasis(1:N, (:↑, :↓))
+# transport = Transport(QuantumDots.Pauli(), (; T=1 / 40, μ=(0.0, 0.0)))
 ##
 N = 2
 fixedparams = (; t=0.5, θ=parameter(π / 2, :diff), ϕ=0, V=0, Δ=0, U=1 * 10, h=2)
