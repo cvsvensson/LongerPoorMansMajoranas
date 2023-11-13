@@ -4,6 +4,7 @@ using Reexport
 using QuantumDots, QuantumDots.BlockDiagonals, LinearAlgebra
 using ForwardDiff, LinearSolve # For transport
 using Folds
+using StaticArrays 
 
 export c, LD, LDf, MP, MPU, excgap
 export hamiltonian, cell_labels, fullsolve, reduced_similarity
