@@ -1,4 +1,4 @@
-Base.@kwdef struct Optimizer{f,r,i,t,ec}
+Base.@kwdef struct Optimizer{f,r,i,t,ec,B}
     hamfunc::f
     ranges::Vector{r}
     initials::Vector{i}
@@ -11,7 +11,7 @@ Base.@kwdef struct Optimizer{f,r,i,t,ec}
     Method::Symbol = :probabilistic_descent
     PopulationSize::Int = 100
     TargetFitness::Float64 = 0.0
-    basis
+    basis::B
 end
 
 

@@ -3,9 +3,9 @@
 # hamiltonian(c; μ1, μ2, Δ, t, tratio, Ez, ϕm, ϕp, U, V) = blockdiagonal((QuantumDots.BD1_hamiltonian(c; h=Ez, t, μ=(-μ1, -μ2), Δ=Δ .* [exp(1im * ϕ / 2), exp(-1im * ϕ / 2)], Δ1=cos(ϕ / 2), θ=parameter(2atan(tratio), :diff), ϕ=0, U, V)), c)
 
 spatial_labels(basis) = collect(unique(first.(keys(basis))))
-μsyms(N) = ntuple(i -> Symbol(:μ, i), N)
-randparams() = rand(9)
-parameternames(N) = [:t, :Δ, :V, :θ, :ϕ, :h, :U, :Δ1, μsyms(N)...]
+# μsyms(N) = ntuple(i -> Symbol(:μ, i), N)
+# randparams() = rand(9)
+# parameternames(N) = [:t, :Δ, :V, :θ, :ϕ, :h, :U, :Δ1, μsyms(N)...]
 
 basis(N, bdg=false) = bdg ? QuantumDots.FermionBdGBasis(1:N, (:↑, :↓)) : FermionBasis(1:N, (:↑, :↓); qn=QuantumDots.parity)
 
@@ -25,10 +25,27 @@ end
 vectorize_arg(arg::Tuple, c) = vectorize_arg([arg...], c)
 
 function hamiltonian(basis::FermionBdGBasis; parameters...)
-    BdGMatrix(QuantumDots.BD1_hamiltonian(basis; parameters...); check = false)
+    BdGMatrix(whamiltonian(basis; parameters...); check=false)
 end
 function hamiltonian(basis::FermionBasis; parameters...)
-    blockdiagonal(QuantumDots.BD1_hamiltonian(basis; parameters...), basis)
+    blockdiagonal(whamiltonian(basis; parameters...), basis)
+end
+
+function build_whamiltonian(basis::FermionBdGBasis; parameters...)
+    syms = filter(x -> x isa Num, parameters)
+    bdg = BdGMatrix(whamiltonian(basis; parameters...); check=false)
+    f, f! = build_function(bdg, syms, expression=Val{false})
+    f2(x...) = hermitianpart!(f(x...))
+    f2!(out, x...) = hermitianpart!(f!(out, x...))
+    return f2, f2!
+end
+function build_whamiltonian(basis::FermionBasis; parameters...)
+    syms = filter(x -> x isa Num, parameters)
+    bdg = blockdiagonal(whamiltonian(basis; parameters...), basis)
+    f, f! = build_function(bdg, syms, expression=Val{false})
+    f2(x...) = hermitianpart!(f(x...))
+    f2!(out, x...) = hermitianpart!(f!(out, x...))
+    return f2, f2!
 end
 
 cell_labels(n, basis) = Tuple(keys(QuantumDots.cell(n, basis)))
@@ -143,4 +160,35 @@ function reflect(_p, N; pad=[])
             throw(ArgumentError("Length of p must be N or N÷2"))
         end
     end
+end
+
+
+#
+function whamiltonian_2site((c1up, c1dn), (c2up, c2dn); t, V, θϕ1, θϕ2)
+    ms = hopping_rotated_nh(t, (c1up, c1dn), (c2up, c2dn), θϕ1, θϕ2)
+    if iszero(V)
+        return ms
+    else
+        return ms + V * ((numberop(c1up) + numberop(c1dn)) * (numberop(c2up) + numberop(c2dn)))
+    end
+end
+function whamiltonian_1site((cup, cdn); ε, Ez, Δ, U)
+    (ε - Ez) * numberop(cup) + (ε + Ez) * numberop(cdn) +
+    pairing_nh(Δ, cup, cdn) + U * coulomb(cup, cdn)
+end
+pairing_nh(Δ, cup, cdn) = 2Δ * cup'cdn'
+function hopping_rotated_nh(t, (c1up, c1dn), (c2up, c2dn), angles1, angles2)
+    Ω = su2_rotation(angles1)' * su2_rotation(angles2)
+    c1 = @SVector [c1up, c1dn]
+    c2 = @SVector [c2up, c2dn]
+    2t * c1' * Ω * c2
+end
+function whamiltonian(c; μ, Ez, t, Δ, U, V, θ)
+    M = nbr_of_fermions(c)
+    @assert length(cell(1, c)) == 2 "Each unit cell should have two fermions for this hamiltonian"
+    N = div(M, 2)
+    gv = QuantumDots.getvalue
+    h1s = (whamiltonian_1site(cell(j, c); μ=gv(μ, j, N), Ez=gv(h, j, N), Δ=gv(Δ, j, N), U=gv(U, j, N)) for j in 1:N)
+    h2s = (whamiltonian_2site(cell(j, c), cell(mod1(j + 1, N), c); t=gv(t, j, N; size=2), V=gv(V, j, N; size=2), θϕ1=(gv(θ, j, N), 0), θϕ2=(gv(θ, mod1(j + 1, N), N), 0)) for j in 1:N)
+    return sum(h1s) + sum(h2s)
 end
