@@ -4,11 +4,12 @@ using Reexport
 using QuantumDots, QuantumDots.BlockDiagonals, LinearAlgebra
 using ForwardDiff, LinearSolve # For transport
 using Folds
-using StaticArrays 
+using StaticArrays
+using Symbolics
 
 export c, LD, LDf, MP, MPU, excgap
 export hamiltonian, cell_labels, fullsolve, reduced_similarity
-export Optimizer, get_sweet_spot, reflect
+export BBOptimizer, get_sweet_spot, reflect, diffreflect
 export Transport
 export charge_stability_scan
 

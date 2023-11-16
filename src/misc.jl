@@ -31,18 +31,23 @@ function hamiltonian(basis::FermionBasis; parameters...)
     blockdiagonal(whamiltonian(basis; parameters...), basis)
 end
 
+function get_symlist(parameters)
+    syms = filter(x -> x[2] isa Num || x[2] isa Vector{Num}, parameters) |> values |> collect
+    unique(reduce(vcat, syms))
+end
 function build_whamiltonian(basis::FermionBdGBasis; parameters...)
-    syms = filter(x -> x isa Num, parameters)
     bdg = BdGMatrix(whamiltonian(basis; parameters...); check=false)
-    f, f! = build_function(bdg, syms, expression=Val{false})
-    f2(x...) = hermitianpart!(f(x...))
-    f2!(out, x...) = hermitianpart!(f!(out, x...))
+    symlist = get_symlist(parameters)
+    f, f! = build_function(bdg, symlist, expression=Val{false})
+    f2(x...) = hermitianpart(f(x...)) |> BdGMatrix
+    f2!(out, x...) = hermitianpart!(f!(out, x...)) |> BdGMatrix
     return f2, f2!
 end
 function build_whamiltonian(basis::FermionBasis; parameters...)
-    syms = filter(x -> x isa Num, parameters)
-    bdg = blockdiagonal(whamiltonian(basis; parameters...), basis)
-    f, f! = build_function(bdg, syms, expression=Val{false})
+    symlist = get_symlist(parameters)
+    bd = blockdiagonal(Matrix(whamiltonian(basis; parameters...)), basis)
+    # println(symlist)
+    f, f! = build_function(bd, symlist, expression=Val{false})
     f2(x...) = hermitianpart!(f(x...))
     f2!(out, x...) = hermitianpart!(f!(out, x...))
     return f2, f2!
@@ -139,6 +144,25 @@ MP(sol) = 1 - (abs(sol.mps.left.mp) + abs(sol.mps.right.mp)) / 2
 MPU(sol) = 1 - (abs(sol.mps.left.mpu) + abs(sol.mps.right.mpu)) / 2
 
 
+function diffreflect(_dp, N; p0=zero(eltype(_dp)))
+    p = collect(_dp)
+    if N == 2
+        @assert length(p) == 1
+        return [p0, p...]
+    end
+    @assert length(p) == div(N, 2) "$(length(p)) !== $(div(N, 2))"
+    p = isodd(N) ? accumulate(+, [p0, p..., reverse(p)...]) : accumulate(+, [p0, p..., reverse(p[1:end-1])...])
+    # p = prepend!(accumulate(+, p), p0)
+    # if iseven(N)
+    #     Nhalf = div(N, 2)
+    #     return [p..., reverse(p)...]
+    # end
+    # if isodd(N)
+    #     Nhalf = div(N + 1, 2)
+    #     return [p..., reverse(p)[2:end]...]
+    # end
+    return p
+end
 function reflect(_p, N; pad=[])
     p = collect(_p)
     if length(p) == N
@@ -169,26 +193,27 @@ function whamiltonian_2site((c1up, c1dn), (c2up, c2dn); t, V, θϕ1, θϕ2)
     if iszero(V)
         return ms
     else
-        return ms + V * ((numberop(c1up) + numberop(c1dn)) * (numberop(c2up) + numberop(c2dn)))
+        return ms + V * ((QuantumDots.numberop(c1up) + QuantumDots.numberop(c1dn)) * (QuantumDots.numberop(c2up) + QuantumDots.numberop(c2dn)))
     end
 end
 function whamiltonian_1site((cup, cdn); ε, Ez, Δ, U)
-    (ε - Ez) * numberop(cup) + (ε + Ez) * numberop(cdn) +
-    pairing_nh(Δ, cup, cdn) + U * coulomb(cup, cdn)
+    (ε - Ez) * QuantumDots.numberop(cup) + (ε + Ez) * QuantumDots.numberop(cdn) +
+    pairing_nh(Δ, cup, cdn) + U * QuantumDots.coulomb(cup, cdn)
 end
 pairing_nh(Δ, cup, cdn) = 2Δ * cup'cdn'
 function hopping_rotated_nh(t, (c1up, c1dn), (c2up, c2dn), angles1, angles2)
-    Ω = su2_rotation(angles1)' * su2_rotation(angles2)
+    Ω = QuantumDots.su2_rotation(angles1)' * QuantumDots.su2_rotation(angles2)
     c1 = @SVector [c1up, c1dn]
     c2 = @SVector [c2up, c2dn]
     2t * c1' * Ω * c2
 end
-function whamiltonian(c; μ, Ez, t, Δ, U, V, θ)
-    M = nbr_of_fermions(c)
+function whamiltonian(c; ε, Ez, t, Δ, U, V, θ)
+    M = length(c)
+    cell = QuantumDots.cell
     @assert length(cell(1, c)) == 2 "Each unit cell should have two fermions for this hamiltonian"
     N = div(M, 2)
     gv = QuantumDots.getvalue
-    h1s = (whamiltonian_1site(cell(j, c); μ=gv(μ, j, N), Ez=gv(h, j, N), Δ=gv(Δ, j, N), U=gv(U, j, N)) for j in 1:N)
+    h1s = (whamiltonian_1site(cell(j, c); ε=gv(ε, j, N), Ez=gv(Ez, j, N), Δ=gv(Δ, j, N), U=gv(U, j, N)) for j in 1:N)
     h2s = (whamiltonian_2site(cell(j, c), cell(mod1(j + 1, N), c); t=gv(t, j, N; size=2), V=gv(V, j, N; size=2), θϕ1=(gv(θ, j, N), 0), θϕ2=(gv(θ, mod1(j + 1, N), N), 0)) for j in 1:N)
     return sum(h1s) + sum(h2s)
 end

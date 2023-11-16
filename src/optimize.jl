@@ -1,3 +1,20 @@
+Base.@kwdef struct BBOptimizer{f,r,i,t,ec,B}
+    hamfunc::f
+    ranges::Vector{r}
+    initials::Vector{i}
+    MaxTime::Float64 = 10.0
+    minexcgap::Float64 = 0.0
+    exps::Vector{Float64} = Float64.(collect(range(0.5, 3; length=4)))
+    target::t = LD
+    tracemode::Symbol = :silent
+    extra_cost::ec = (x...) -> 0
+    Method::Symbol = :probabilistic_descent
+    PopulationSize::Int = 100
+    TargetFitness::Float64 = 0.0
+    basis::B
+end
+
+
 Base.@kwdef struct Optimizer{f,r,i,t,ec,B}
     hamfunc::f
     ranges::Vector{r}
@@ -16,21 +33,22 @@ end
 
 
 cost_function(gap, excgap, reduced::Number; exp=12.0, minexcgap=0) = cost_reduced(reduced) + cost_energy(gap, excgap; exp, minexcgap)
-cost_energy(gap, excgap; minexcgap=0, exp) = cost_gap(gap; exp) + ((excgap - minexcgap) < 0 ? 1 + 10.0^exp * abs(excgap - minexcgap) : 0)
-cost_gap(gap; exp) = abs(gap) > 2 * 10.0^(-exp) ? 1.0 + 10^(exp) * abs2(gap) : abs2(gap)
+cost_energy(gap, excgap; minexcgap=0, exp) = cost_gap(gap, exp) + ((excgap - minexcgap) < 0 ? 1.0 + 10.0^exp * abs(excgap - minexcgap) : 0.0)
+# cost_gap(gap, exp) = abs(gap) > 2 * 10.0^(-exp) ? 1.0 + 10^(exp) * abs2(gap) : abs2(gap)
+cost_gap(gap, exp) = 10.0^(exp) * abs2(gap)
 cost_reduced(reduced) = reduced^2
 
 
 
-tracemode(opt::Optimizer) = opt.tracemode
-function cost(exp, opt::Optimizer)
+tracemode(opt::BBOptimizer) = opt.tracemode
+function cost(exp, opt::BBOptimizer)
     function _cost(args)
         sol = fullsolve(opt.hamfunc(args...), opt.basis)
-        cost_function(sol.gap, sol.excgap, opt.target(sol); exp, opt.minexcgap) + opt.extra_cost(args, exp)
+        cost_function(sol.gap, sol.excgap, opt.target(sol); exp, minexcgap=opt.minexcgap) + opt.extra_cost(args, exp)
     end
 end
 
-function get_sweet_spot(opt::Optimizer)
+function get_sweet_spot(opt::BBOptimizer)
     refinements = length(opt.exps)
     SearchRange = opt.ranges #map(expand_searchrange, opt.ranges, opt.initials)
     NumDimensions = length(SearchRange)
@@ -64,7 +82,7 @@ function anti_parallel_sweet_spot(; Δ, tratio, h, U, V, t, MaxTime, exps=collec
     hamfunc(ϕ, μ1, μ2) = hamiltonian(c; μ1, μ2, ϕ, fixedparams...)
     maxh = max(abs.(h)...)
     maxU = max(abs.(U)...)
-    opt = Optimizer(;
+    opt = BBOptimizer(;
         hamfunc,
         ranges=[(0.0, 1.0π), (0.0, 1.1 * μ1 + maxh + maxU), (-maxh - maxU + μ2, maxU + V)],
         initials=Float64.([ϕ, μ1, μ2]),
