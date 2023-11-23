@@ -34,8 +34,17 @@ elseif c isa FermionBdGBasis
 end
 @time f!(cache, [4.0, 2.1]);
 ##
-@time f, f!, cache = get_hamfuncs(FermionBasis(1:2, (:↑, :↓), qn=QuantumDots.parity), fixedparams);
+@time f, f!, cache = LongerPoorMansMajoranas.get_hamfuncs(FermionBasis(1:2, (:↑, :↓), qn=QuantumDots.parity), fixedparams);
 f(1:3)
+##
+c = FermionBasis(1:3, (:↑, :↓), qn=QuantumDots.parity)
+fixedparams = (; t=0.5, θ=parameter(2atan(2.0), :diff), V=0.2, U=2.5, Ez=1.25)
+f, f!, cache = LongerPoorMansMajoranas.get_hamfuncs(c, fixedparams);
+H = f([1, 1, 1])
+tr(H)
+eigvals(H)
+
+sol = fullsolve(H, c)
 ##
 c = FermionBasis(1:3, (:↑, :↓), qn=QuantumDots.parity)
 fixedparams = (; t=0.5, θ=parameter(pi / 2, :diff), V=0, U=1, Ez=1.5)
@@ -72,7 +81,7 @@ map(x -> findmin(map(y -> MPU(y.optsol), x)), Nsols[2])
 map(x -> findmin(map(y -> MPU(y.optsol), x)), Nsols[3])
 best_algs()[5]
 ##
-fixedparams = (; t=0.5, θ=parameter(2atan(.2), :diff), V=0)
+fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0)
 UEsols = let Us = collect(range(0.0, 10, length=20)), Ezs = collect(range(0.1, 6, length=20)), c = FermionBasis(1:2, (:↑, :↓), qn=QuantumDots.parity)
     UEsols = Matrix{Any}(undef, length(Us), length(Ezs))
     for (i, U) in collect(enumerate(Us))
@@ -84,11 +93,11 @@ UEsols = let Us = collect(range(0.0, 10, length=20)), Ezs = collect(range(0.1, 6
     end
     UEsols
 end
-uesols2 = ans
+##
 heatmap(map(x -> minimum(map(y -> MPU(y.optsol), x)), UEsols)')
 heatmap(map(x -> (map(y -> y.sol[2], x))[1], UEsols)')
 
-heatmap(map(x -> minimum(map(y -> MPU(y.optsol), x)), UEsols)')
+heatmap(map(x -> minimum(map(y -> LDf(y.optsol), x)), UEsols)')
 
 ##
 ##
