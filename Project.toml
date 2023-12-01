@@ -1,6 +1,7 @@
 name = "LongerPoorMansMajoranas"
 
 [deps]
+Accessors = "7d9f7c33-5ae7-4f3b-8dc6-eff91059b697"
 BlackBoxOptim = "a134a8b2-14d6-55f6-9291-3336d3ab0209"
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
