@@ -81,8 +81,8 @@ map(x -> findmin(map(y -> MPU(y.optsol), x)), Nsols[2])
 map(x -> findmin(map(y -> MPU(y.optsol), x)), Nsols[3])
 best_algs()[5]
 ##
-fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0)
-UEsols = let Us = collect(range(0.0, 10, length=20)), Ezs = collect(range(0.1, 6, length=20)), c = FermionBasis(1:2, (:↑, :↓), qn=QuantumDots.parity)
+fixedparams = (; t=0.5, θ=parameter(2atan(2), :diff), V=0)
+UEsols = let Us = collect(range(0.0, 200, length=20)), Ezs = collect(range(0.1, 40, length=20)), c = FermionBasis(1:2, (:↑, :↓), qn=QuantumDots.parity)
     UEsols = Matrix{Any}(undef, length(Us), length(Ezs))
     for (i, U) in collect(enumerate(Us))
         for (k, Ez) in enumerate(Ezs)
@@ -94,8 +94,10 @@ UEsols = let Us = collect(range(0.0, 10, length=20)), Ezs = collect(range(0.1, 6
     UEsols
 end
 ##
-heatmap(map(x -> minimum(map(y -> MPU(y.optsol), x)), UEsols)')
-heatmap(map(x -> (map(y -> y.sol[2], x))[1], UEsols)')
+heatmap(map(x -> minimum(map(y -> log(MPU(y.optsol)), x)), UEsols)'; c=cgrad(:viridis, rev=true), clims = (-6,0))
+heatmap(map(x -> minimum(map(y -> log(LD(y.optsol)), x)), UEsols)'; c=cgrad(:viridis, rev=true), clims = (-6,0))
+heatmap(map(x -> x[1].optsol.excgap, UEsols)', clims = (0,.5))
+heatmap(map(x -> tanh(x[1].optsol.gap), UEsols)', clims = (-.01,.01), c = :redsblues)
 
 heatmap(map(x -> minimum(map(y -> LDf(y.optsol), x)), UEsols)')
 

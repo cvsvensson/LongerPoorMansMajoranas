@@ -122,10 +122,10 @@ end
 function get_ranges(basis)
     N = div(length(basis), 2)
     Nhalf = div(N + 1, 2)
-    Δranges = [(0.1, 2.0) for i in 1:Nhalf]
+    Δranges = [(0.01, 10.0) for i in 1:Nhalf]
     δϕranges = [(0.0, 2.0pi) for i in 1:div(N, 2)]
-    εranges = [(-20.0, 20.0) for i in 1:Nhalf]
-    ranges = [Δranges..., δϕranges..., εranges...]
+    εranges = [(-200.0, 200.0) for i in 1:Nhalf]
+    [Δranges..., δϕranges..., εranges...]
 end
 function SciMLBase.solve(prob::OptProb, alg; MaxTime=5, minexcgap=1 / 4, exps=collect(range(0.1, 3, length=4)), maxiters=1000, initials=get_initials(prob.basis), kwargs...)
     f, fs = opt_func(prob, alg)
