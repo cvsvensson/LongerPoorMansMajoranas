@@ -32,8 +32,9 @@ Base.@kwdef struct Optimizer{f,r,i,t,ec,B}
 end
 
 
-cost_function(gap, excgap, reduced::Number; exp=12.0, minexcgap=0) = cost_reduced(reduced) + cost_energy(gap, excgap; exp, minexcgap)
-cost_energy(gap, excgap; minexcgap=0, exp) = cost_gap(gap, exp) + ((excgap - minexcgap) < 0 ? 1.0 + 10.0^exp * abs(excgap - minexcgap) : 0.0)
+cost_function(gap, excgap, reduced::Number; exp=12.0, minexcgap) = cost_reduced(reduced) + cost_energy(gap, excgap; exp, minexcgap)
+cost_energy(gap, excgap; minexcgap, exp) = cost_gap(gap, exp) + cost_excgap(excgap, minexcgap, exp)
+cost_excgap(excgap, minexcgap, exp) = ((excgap - minexcgap) < 0 ? 1.0 + 10.0^exp * abs(excgap - minexcgap) : 0.0)
 # cost_gap(gap, exp) = abs(gap) > 2 * 10.0^(-exp) ? 1.0 + 10^(exp) * abs2(gap) : abs2(gap)
 cost_gap(gap, exp) = 10.0^(exp) * abs2(gap)
 cost_reduced(reduced) = reduced^2
@@ -53,6 +54,11 @@ function decompose_ϕε(ps, N=length(ps))#div(length(ps), 2))
     Nhalf2 = div(N, 2)
     ϕs = ps[1:Nhalf2]
     εs = ps[Nhalf2+1:end]
+    return ϕs, εs
+end
+function decompose_allϕ_ε(ps, N)#div(length(ps), 2))
+    ϕs = ps[1:N]
+    εs = ps[N+1:end]
     return ϕs, εs
 end
 splatter_rϕε(ps, N) = splatter_rϕε(decompose_rϕε(ps)..., N)
@@ -80,11 +86,27 @@ function hamfunc_ϕε(c, fixedparams)
     @variables Δ[1:N], εs[1:Nhalf]::Real
     params = merge(fixedparams, (; Δ=collect(Δ[1:N]), ε=reflect(εs, N)))
     f, f! = LongerPoorMansMajoranas.build_whamiltonian(c; params...)
-    splatter_ϕε(ps, N) = splatter_ϕε(decompose_ϕε(ps)..., N)
+    splatter_ϕε(ps, N) = splatter_ϕε(decompose_ϕε(ps, N)..., N)
     splatter_ϕε(δϕs, ϵs, N) = vcat(fixedparams.Δ .* exp.(1im .* diffreflect(δϕs, N)), ϵs)
     f2(ps) = f(splatter_ϕε(ps, N))
     f2!(out, ps) = f!(out, splatter_ϕε(ps, N))
     ps = rand(N)
+    cache = get_cache(c, Matrix(f2(ps)))
+    # display(f2(ps))
+    return f2, f2!, cache
+end
+function hamfunc_allϕ_ε(c, fixedparams)
+    N = div(QuantumDots.nbr_of_fermions(c), 2)
+    Nhalf = div(N + 1, 2)
+    # Nhalf2 = div(N, 2)
+    @variables Δ[1:N], εs[1:Nhalf]::Real
+    params = merge(fixedparams, (; Δ=collect(Δ[1:N]), ε=reflect(εs, N)))
+    f, f! = LongerPoorMansMajoranas.build_whamiltonian(c; params...)
+    splatter_allϕ_ε(ps, N) = splatter_allϕ_ε(decompose_allϕ_ε(ps, N)..., N)
+    splatter_allϕ_ε(ϕs, ϵs, N) = vcat(fixedparams.Δ .* exp.(1im .* ϕs), ϵs)
+    f2(ps) = f(splatter_allϕ_ε(ps, N))
+    f2!(out, ps) = f!(out, splatter_allϕ_ε(ps, N))
+    ps = rand(N + Nhalf)
     cache = get_cache(c, f2(ps))
     return f2, f2!, cache
 end
@@ -92,7 +114,7 @@ end
 
 
 get_cache(c::FermionBasis, ham) = blockdiagonal(ham, c)
-get_cache(c::FermionBdGBasis, ham) = BdGMatrix(Matrix(ham))
+get_cache(c::FermionBdGBasis, ham) = (Matrix(ham))
 # function get_hamfuncs(c, fixedparams, hamfunc)
 # N = div(QuantumDots.nbr_of_fermions(c), 2)
 # Nhalf = div(N + 1, 2)
@@ -121,13 +143,12 @@ get_cache(c::FermionBdGBasis, ham) = BdGMatrix(Matrix(ham))
     basis::B
     fixedparams::P
     target::T = x -> MPU(x) + LDf(x)
-    minexcgap::Float64 = 0.0
 end
 
-opt_func(opt::OptProb, ::IPNewton) = opt_func_cons(opt.hamfunc, opt.fixedparams, opt.basis, AutoFiniteDiff(), opt.target, opt.minexcgap)
-opt_func(opt::OptProb, ::Optim.ConjugateGradient) = opt_func(opt.hamfunc, opt.fixedparams, opt.basis, AutoFiniteDiff(), opt.target, opt.minexcgap)
-opt_func(opt::OptProb, ::NelderMead) = opt_func(opt.hamfunc, opt.fixedparams, opt.basis, AutoFiniteDiff(), opt.target, opt.minexcgap)
-opt_func(opt::OptProb, alg) = opt_func(opt.hamfunc, opt.fixedparams, opt.basis, nothing, opt.target, opt.minexcgap)
+opt_func(opt::OptProb, ::IPNewton) = opt_func_cons(opt.hamfunc, opt.fixedparams, opt.basis, AutoFiniteDiff(), opt.target)
+opt_func(opt::OptProb, ::Optim.ConjugateGradient) = opt_func(opt.hamfunc, opt.fixedparams, opt.basis, AutoFiniteDiff(), opt.target)
+opt_func(opt::OptProb, ::NelderMead) = opt_func(opt.hamfunc, opt.fixedparams, opt.basis, AutoFiniteDiff(), opt.target)
+opt_func(opt::OptProb, alg) = opt_func(opt.hamfunc, opt.fixedparams, opt.basis, nothing, opt.target)
 
 
 function opt_func_cons(hamfunc, fixedparams, basis, ad=nothing, target=x -> MPU(x) + LDf(x))
@@ -138,7 +159,7 @@ function opt_func_cons(hamfunc, fixedparams, basis, ad=nothing, target=x -> MPU(
     function cons(res, x, minexcgap)
         sol = fullsolve2(x)
         res[1] = sol.gap
-        res[2] = sol.excgap - minexcgap
+        res[2] = min(sol.excgap - minexcgap, 0.0)
     end
     if isnothing(ad)
         return OptimizationFunction(cost; cons), fullsolve2
@@ -154,7 +175,7 @@ function opt_func(hamfunc, fixedparams, basis, ad=nothing, target=x -> MPU(x) + 
     # f2(x) = fullsolve(f0(x), basis)
     function f(x, (exp, minexcgap))
         sol = f2(x)
-        LongerPoorMansMajoranas.cost_function(sol.gap, sol.excgap, target(sol); exp, minexcgap) + extra_cost(x, exp)
+        cost_function(sol.gap, sol.excgap, target(sol); exp, minexcgap) + extra_cost(x, exp)
     end
     if isnothing(ad)
         return OptimizationFunction(f), f2
@@ -164,6 +185,10 @@ function opt_func(hamfunc, fixedparams, basis, ad=nothing, target=x -> MPU(x) + 
 end
 
 
+function get_initials(hamfunc::typeof(hamfunc_allϕ_ε), basis)
+    N = div(length(basis), 2)
+    [pi .* ones(N)..., zeros(div(N + 1, 2))...]
+end
 function get_initials(hamfunc::typeof(hamfunc_rϕε), basis)
     N = div(length(basis), 2)
     [ones(div(N + 1, 2))..., pi .* ones(div(N, 2))..., zeros(div(N + 1, 2))...]
@@ -186,6 +211,13 @@ function get_ranges(hamfunc::typeof(hamfunc_rϕε), basis)
     δϕranges = [(0.0, 2.0pi) for i in 1:div(N, 2)]
     εranges = [(-20.0, 20.0) for i in 1:Nhalf]
     [Δranges..., δϕranges..., εranges...]
+end
+function get_ranges(hamfunc::typeof(hamfunc_allϕ_ε), basis)
+    N = div(length(basis), 2)
+    Nhalf = div(N + 1, 2)
+    ϕranges = [(0.0, 2.0pi) for i in 1:N]
+    εranges = [(-20.0, 20.0) for i in 1:Nhalf]
+    [ϕranges..., εranges...]
 end
 function SciMLBase.solve(prob::OptProb, alg; MaxTime=5, minexcgap=1 / 4, exps=collect(range(0.1, 3, length=4)), maxiters=1000, initials=get_initials(prob.hamfunc, prob.basis), kwargs...)
     f, fs = opt_func(prob, alg)

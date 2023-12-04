@@ -36,11 +36,14 @@ function get_symlist(parameters)
     unique(reduce(vcat, syms))
 end
 function build_whamiltonian(basis::FermionBdGBasis; parameters...)
-    bdg = BdGMatrix(whamiltonian(basis; parameters...); check=false)
+    # bdg = BdGMatrix(whamiltonian(basis; parameters...); check=false)
+    bdg = Matrix(whamiltonian(basis; parameters...))
     symlist = get_symlist(parameters)
+    # display(bdg)
+    # display(hermitianpart(bdg))
     f, f! = build_function(bdg, symlist, expression=Val{false})
     f2(x...) = hermitianpart(f(x...)) |> BdGMatrix
-    f2!(out, x...) = hermitianpart!(f!(out, x...)) |> BdGMatrix
+    f2!(out, x...) = (f!(out, x...); hermitianpart!(out) |> BdGMatrix)
     return f2, f2!
 end
 function build_whamiltonian(basis::FermionBasis; parameters...)
@@ -58,9 +61,9 @@ cell_labels(basis) = Base.Fix2(cell_labels, basis)
 function reduced_similarity(basis, oddvec::AbstractVector, evenvec)
     o = oddvec * oddvec'
     e = evenvec * evenvec'
-    fermions = map(label -> norm(partial_trace(o - e, (label,), basis), 1), keys(basis))
+    fermions = map(label -> norm(partial_trace(o - e, (label,), basis), 2), keys(basis))
     labels = cell_labels(basis)
-    cells = map(n -> norm(partial_trace(o - e, labels(n), basis), 1),
+    cells = map(n -> norm(partial_trace(o - e, labels(n), basis), 2),
         spatial_labels(basis))
     return (; fermions, cells)
 end
@@ -75,8 +78,8 @@ function reduced_similarity(qps::AbstractVector{<:QuantumDots.QuasiParticle})
     cell_positions(n) = [basis.position[cl] for cl in cell_labels(n, basis)]
     cinds(n) = [cell_positions(n)..., (cell_positions(n) .+ N)...]
     cell_matrices = (; even=map(n -> ρeven[cinds(n), cinds(n)], 1:div(N, 2)), odd=map(n -> ρodd[cinds(n), cinds(n)], 1:div(N, 2)))
-    fermions = QuantumDots.Dictionary(labels, [norm(ρeven[[n, n + N], [n, n + N]] - ρodd[[n, n + N], [n, n + N]], 1) for n in 1:length(labels)])
-    cells = QuantumDots.Dictionary(1:div(N, 2), [norm(ρeven[cinds(n), cinds(n)] - ρodd[cinds(n), cinds(n)], 1) for n in 1:div(N, 2)])
+    fermions = QuantumDots.Dictionary(labels, [norm(ρeven[[n, n + N], [n, n + N]] - ρodd[[n, n + N], [n, n + N]], 2) for n in 1:length(labels)])
+    cells = QuantumDots.Dictionary(1:div(N, 2), [norm(ρeven[cinds(n), cinds(n)] - ρodd[cinds(n), cinds(n)], 2) for n in 1:div(N, 2)])
     return (; fermions, cells, cell_matrices)
 end
 
@@ -119,7 +122,7 @@ function fullsolve(H, basis::FermionBdGBasis; reduced=true, transport=missing, c
     best_majorana = qps[N]
     gs_parity = QuantumDots.ground_state_parity(es, ops) |> real |> round
     gap = gs_parity == -1 ? es[N] : es[N+1]
-    excgap = abs(es[N-1])
+    excgap = abs(es[N-1] - es[N])
     gapratio = sign(gap)abs(gap / excgap)
     # lefthalflabels = filter(l -> Base.first(l) <= div(N, 4), keys(basis).values)
     majcoeffs = QuantumDots.majorana_coefficients(best_majorana)

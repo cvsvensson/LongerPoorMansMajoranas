@@ -89,28 +89,116 @@ best_algs()[5]
 fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0, Δ=1)
 hamfunc = LongerPoorMansMajoranas.hamfunc_ϕε
 basis = FermionBasis(1:2, (:↑, :↓), qn=QuantumDots.parity)
-UEsols = let Us = collect(range(0.0, 8, length=10)), Ezs = collect(range(0.1, 20, length=20))
+basis = FermionBdGBasis(1:2, (:↑, :↓))
+# algs = best_algs()[[1, 5]]
+# algs = best_algs()[[1]]
+algs = best_algs()[[1]]
+UEsols2 = let Us = collect(range(0.0, 6, length=5)), Ezs = collect(range(0.1, 10, length=8))
     UEsols = Matrix{Any}(undef, length(Us), length(Ezs))
     for (i, U) in collect(enumerate(Us))
         for (k, Ez) in enumerate(Ezs)
             prob = OptProb(; hamfunc, basis, fixedparams=merge(fixedparams, (; U, Ez)))
-            algsols = [solve(prob, alg; maxiters=1000, MaxTime=1) for alg in best_algs()[[1, 5]]]
+            algsols = [solve(prob, alg; minexcgap=0.2, maxiters=1000, MaxTime=1) for alg in algs]
             UEsols[i, k] = algsols
         end
     end
     UEsols
 end
 ##
-heatmap(map(x -> minimum(map(y -> log(MPU(y.optsol)), x)), UEsols)'; c=cgrad(:viridis, rev=true), clims = (-6,0))
-heatmap(map(x -> minimum(map(y -> log(LD(y.optsol)), x)), UEsols)'; c=cgrad(:viridis, rev=true), clims = (-6,0))
-heatmap(map(x -> x[1].optsol.excgap, UEsols)', clims = (0,.5))
-heatmap(map(x -> tanh(x[1].optsol.gap), UEsols)', clims = (-.01,.01), c = :redsblues)
+fixedparams = (; t=0.5, θ=parameter(2atan(1.1), :diff), V=0, Δ=0.1, U=0, Ez=2.5)
+smb = let basis = FermionBasis(1:2, (:↑, :↓), qn=QuantumDots.parity), ps = [1, 2]
+    f, f!, c = LongerPoorMansMajoranas.hamfunc_ϕε(basis, fixedparams)
+    f!(c, ps)
+    fullsolve(c, basis)
+end;
+sbdg = let basis = FermionBdGBasis(1:2, (:↑, :↓)), ps = [1, 2]
+    f, f!, c = LongerPoorMansMajoranas.hamfunc_ϕε(basis, fixedparams)
+    h = f(ps)
+    h = f!(c, ps)
+    # f(ps) - c
+    fullsolve(c, basis)
+end;
+smb.excgap
+sbdg.excgap
+LDf.([smb, sbdg])
+##
+basis = FermionBasis(1:3, (:↑, :↓), qn=QuantumDots.parity)
+basis = FermionBdGBasis(1:2, (:↑, :↓))
+
+prob1 = OptProb(; hamfunc=LongerPoorMansMajoranas.hamfunc_allϕ_ε, basis, fixedparams=merge(fixedparams, (; U=0, Ez=3.5)), target=LD)
+sol1 = solve(prob1, best_algs()[1]; minexcgap=0.2, maxiters=10000, MaxTime=2)
+sol1.optsol |> LDf
+
+prob2 = OptProb(; hamfunc=LongerPoorMansMajoranas.hamfunc_rϕε, basis, fixedparams=merge(fixedparams, (; U=1, Ez=2)))
+sol2 = solve(prob2, best_algs()[1]; minexcgap=0.3, maxiters=10000, MaxTime=5)
+##
+sol = solve(prob, best_algs()[7]; minexcgap=0.4, maxiters=1000, MaxTime=1)
+sol.optsol.excgap
+sol.optsol.gap
+##
+heatmap(map(x -> minimum(map(y -> log(MPU(y.optsol)), x)), UEsols2)'; c=cgrad(:viridis, rev=true), clims=(-6, 0))
+heatmap(map(x -> minimum(map(y -> log(LD(y.optsol)), x)), UEsols2)'; c=cgrad(:viridis, rev=true), clims=(-6, 0))
+heatmap(map(x -> x[1].optsol.excgap, UEsols)', clims=(0, 0.5))
+heatmap(map(x -> tanh(x[1].optsol.gap), UEsols)', clims=(-0.01, 0.01), c=:redsblues)
 
 heatmap(map(x -> minimum(map(y -> LD(y.optsol), x)), UEsols)')
-
 ##
+map(x -> findmin(y -> log(LD(y.optsol)), x)[2], UEsols)
 ##
 map(x -> x.params, sols)
+
+
+##
+fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0, Δ=1, U=0.0)
+hamfunc1 = LongerPoorMansMajoranas.hamfunc_ϕε
+hamfunc2 = LongerPoorMansMajoranas.hamfunc_allϕ_ε
+N = 4
+basis1 = FermionBasis(1:N, (:↑, :↓), qn=QuantumDots.parity)
+basis2 = FermionBdGBasis(1:N, (:↑, :↓))
+alginds = [1, 5]
+Ezsols1, Ezsols2 = let Ezs = collect(range(0.1, 8, length=10))
+    Ezsols1 = Vector{Any}(undef, length(Ezs))
+    Ezsols2 = Vector{Any}(undef, length(Ezs))
+    for (k, Ez) in collect(enumerate(Ezs))
+        prob1 = OptProb(; hamfunc=hamfunc1, basis=basis2, fixedparams=merge(fixedparams, (; Ez)))
+        prob2 = OptProb(; hamfunc=hamfunc2, basis=basis2, fixedparams=merge(fixedparams, (; Ez)))
+        algsols1 = [solve(prob1, alg; minexcgap=0.2, maxiters=10000, MaxTime=10) for alg in best_algs()[alginds]]
+        algsols2 = [solve(prob2, alg; minexcgap=0.2, maxiters=10000, MaxTime=10) for alg in best_algs()[alginds]]
+        Ezsols1[k] = algsols1
+        Ezsols2[k] = algsols2
+    end
+    Ezsols1, Ezsols2
+end
+##
+plot(map(x -> minimum(map(y -> log(MPU(y.optsol)), x)), Ezsols1); clims=(-6, 0));
+plot!(map(x -> minimum(map(y -> log(1e-10 + MPU(y.optsol)), x)), Ezsols2); clims=(-6, 0))
+##
+plot(map(x -> log(MPU(x[1].optsol)), Ezsols1); clims=(-6, 0));
+plot!(map(x -> log(MPU(x[2].optsol)), Ezsols2); clims=(-6, 0));
+plot!(map(x -> log(MPU(x[1].optsol)), Ezsols1); clims=(-6, 0));
+plot!(map(x -> log(MPU(x[2].optsol)), Ezsols2); clims=(-6, 0))
+##
+plot(map(x -> log(abs(x[1].optsol.gap)), Ezsols1); clims=(-6, 0));
+plot!(map(x ->log(abs( x[2].optsol.gap)), Ezsols2); clims=(-6, 0));
+plot!(map(x ->log(abs( x[1].optsol.gap)), Ezsols1); clims=(-6, 0));
+plot!(map(x ->log(abs( x[2].optsol.gap)), Ezsols2); clims=(-6, 0))
+##
+plot(map(x -> ((x[1].optsol.excgap)), Ezsols1); clims=(-6, 0));
+plot!(map(x ->(( x[2].optsol.excgap)), Ezsols2); clims=(-6, 0));
+plot!(map(x ->(( x[1].optsol.excgap)), Ezsols1); clims=(-6, 0));
+plot!(map(x ->(( x[2].optsol.excgap)), Ezsols2); clims=(-6, 0))
+##
+plot(map(x -> minimum(map(y -> log(LD(y.optsol)), x)), Ezsols1); clims=(-6, 0));
+plot!(map(x -> minimum(map(y -> log(LD(y.optsol)), x)), Ezsols2); clims=(-6, 0))
+##
+map(x -> x[2].optsol.gap, Ezsols1)
+map(x -> x[2].optsol.excgap, Ezsols1)
+
+map(x -> x[2].sol |> collect, Ezsols1)
+map(x -> x[2].sol |> collect, Ezsols2)
+map(x -> x[2].sol[1:2] |> diff |> only, Ezsols2)
+map(x -> findmin(y -> log(LD(y.optsol)), x)[2], Ezsols1)
+
 
 ##
 multisolve(f, alg, basis; MaxTime=5, minexcgap=1 / 4, exps=collect(range(0.1, 3, length=4)), maxiters=1000, initials=get_initials(basis), kwargs...) = multisolve(f, (alg,), basis; MaxTime, minexcgap, exps, maxiters, initials, kwargs...)
