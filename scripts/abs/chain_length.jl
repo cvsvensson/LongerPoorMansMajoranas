@@ -4,6 +4,7 @@ using QuantumDots, QuantumDots.BlockDiagonals, LinearAlgebra#, BlackBoxOptim
 using Plots
 using Symbolics
 using Folds
+using Accessors
 # using Optimization, OptimizationBBO, OptimizationNLopt, OptimizationOptimJL, OptimizationNOMAD, OptimizationEvolutionary, OptimizationMetaheuristics, OptimizationMultistartOptimization, OptimizationGCMAES, OptimizationCMAEvolutionStrategy, OptimizationPRIMA, Ipopt
 function plotmajcoeffs(ws, zs)
     k = string.(keys(ws).values)
@@ -34,8 +35,12 @@ elseif c isa FermionBdGBasis
 end
 @time f!(cache, [4.0, 2.1]);
 ##
-@time f, f!, cache = LongerPoorMansMajoranas.get_hamfuncs(FermionBasis(1:2, (:↑, :↓), qn=QuantumDots.parity), fixedparams);
-f(1:3)
+@time f, f!, cache = LongerPoorMansMajoranas.hamfunc_rϕε(FermionBasis(1:2, (:↑, :↓), qn=QuantumDots.parity), fixedparams);
+h1 = f(ones(3))
+##
+fp2 = @insert fixedparams.Δ = 1
+@time f, f!, cache = LongerPoorMansMajoranas.hamfunc_ϕε(FermionBasis(1:2, (:↑, :↓), qn=QuantumDots.parity), fp2);
+h2 = f(ones(2))
 ##
 c = FermionBasis(1:3, (:↑, :↓), qn=QuantumDots.parity)
 fixedparams = (; t=0.5, θ=parameter(2atan(2.0), :diff), V=0.2, U=2.5, Ez=1.25)
@@ -60,7 +65,7 @@ bar(best_alg_names(), map(x -> MPU(x.optsol) + LDf(x.optsol), sols); xrotation=3
 Us = collect(range(0.0, 5, length=6))
 Ezs = collect(range(0.5, 2.5, length=7))
 itr = Base.product(Us, Ezs) |> collect
-fixedparams = (; t=0.5, θ=parameter(pi / 2, :diff), V=0)
+fixedparams = (; t=0.5, θ=parameter(pi / 2, :diff), V=0, Δ=1)
 Nsols = Vector{Any}(undef, 3)
 Threads.@threads for (n, N) in collect(enumerate(2:4))
     c = FermionBasis(1:N, (:↑, :↓), qn=QuantumDots.parity)
@@ -81,12 +86,14 @@ map(x -> findmin(map(y -> MPU(y.optsol), x)), Nsols[2])
 map(x -> findmin(map(y -> MPU(y.optsol), x)), Nsols[3])
 best_algs()[5]
 ##
-fixedparams = (; t=0.5, θ=parameter(2atan(2), :diff), V=0)
-UEsols = let Us = collect(range(0.0, 200, length=20)), Ezs = collect(range(0.1, 40, length=20)), c = FermionBasis(1:2, (:↑, :↓), qn=QuantumDots.parity)
+fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0, Δ=1)
+hamfunc = LongerPoorMansMajoranas.hamfunc_ϕε
+basis = FermionBasis(1:2, (:↑, :↓), qn=QuantumDots.parity)
+UEsols = let Us = collect(range(0.0, 8, length=10)), Ezs = collect(range(0.1, 20, length=20))
     UEsols = Matrix{Any}(undef, length(Us), length(Ezs))
     for (i, U) in collect(enumerate(Us))
         for (k, Ez) in enumerate(Ezs)
-            prob = OptProb(; basis=c, fixedparams=merge(fixedparams, (; U, Ez)))
+            prob = OptProb(; hamfunc, basis, fixedparams=merge(fixedparams, (; U, Ez)))
             algsols = [solve(prob, alg; maxiters=1000, MaxTime=1) for alg in best_algs()[[1, 5]]]
             UEsols[i, k] = algsols
         end
@@ -99,7 +106,7 @@ heatmap(map(x -> minimum(map(y -> log(LD(y.optsol)), x)), UEsols)'; c=cgrad(:vir
 heatmap(map(x -> x[1].optsol.excgap, UEsols)', clims = (0,.5))
 heatmap(map(x -> tanh(x[1].optsol.gap), UEsols)', clims = (-.01,.01), c = :redsblues)
 
-heatmap(map(x -> minimum(map(y -> LDf(y.optsol), x)), UEsols)')
+heatmap(map(x -> minimum(map(y -> LD(y.optsol), x)), UEsols)')
 
 ##
 ##
