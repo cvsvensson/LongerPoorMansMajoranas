@@ -67,49 +67,6 @@ function splatter_rϕε(rs, δϕs, ϵs, N)
     return vcat(reflect(rs, N) .* exp.(1im .* diffreflect(δϕs, N)), ϵs)
 end
 
-function hamfunc_rϕε(c, fixedparams)
-    N = div(QuantumDots.nbr_of_fermions(c), 2)
-    Nhalf = div(N + 1, 2)
-    @variables Δ[1:N], εs[1:Nhalf]::Real
-    params = merge(fixedparams, (; Δ=collect(Δ[1:N]), ε=reflect(εs, N)))
-    f, f! = LongerPoorMansMajoranas.build_whamiltonian(c; params...)
-    f2(ps) = f(splatter_rϕε(ps, N))
-    f2!(out, ps) = f!(out, splatter_rϕε(ps, N))
-    ps = rand(2Nhalf + div(N, 2))
-    cache = get_cache(c, f2(ps))
-    return f2, f2!, cache
-end
-function hamfunc_ϕε(c, fixedparams)
-    N = div(QuantumDots.nbr_of_fermions(c), 2)
-    Nhalf = div(N + 1, 2)
-    Nhalf2 = div(N, 2)
-    @variables Δ[1:N], εs[1:Nhalf]::Real
-    params = merge(fixedparams, (; Δ=collect(Δ[1:N]), ε=reflect(εs, N)))
-    f, f! = LongerPoorMansMajoranas.build_whamiltonian(c; params...)
-    splatter_ϕε(ps, N) = splatter_ϕε(decompose_ϕε(ps, N)..., N)
-    splatter_ϕε(δϕs, ϵs, N) = vcat(fixedparams.Δ .* exp.(1im .* diffreflect(δϕs, N)), ϵs)
-    f2(ps) = f(splatter_ϕε(ps, N))
-    f2!(out, ps) = f!(out, splatter_ϕε(ps, N))
-    ps = rand(N)
-    cache = get_cache(c, Matrix(f2(ps)))
-    # display(f2(ps))
-    return f2, f2!, cache
-end
-function hamfunc_allϕ_ε(c, fixedparams)
-    N = div(QuantumDots.nbr_of_fermions(c), 2)
-    Nhalf = div(N + 1, 2)
-    # Nhalf2 = div(N, 2)
-    @variables Δ[1:N], εs[1:Nhalf]::Real
-    params = merge(fixedparams, (; Δ=collect(Δ[1:N]), ε=reflect(εs, N)))
-    f, f! = LongerPoorMansMajoranas.build_whamiltonian(c; params...)
-    splatter_allϕ_ε(ps, N) = splatter_allϕ_ε(decompose_allϕ_ε(ps, N)..., N)
-    splatter_allϕ_ε(ϕs, ϵs, N) = vcat(fixedparams.Δ .* exp.(1im .* ϕs), ϵs)
-    f2(ps) = f(splatter_allϕ_ε(ps, N))
-    f2!(out, ps) = f!(out, splatter_allϕ_ε(ps, N))
-    ps = rand(N + Nhalf)
-    cache = get_cache(c, f2(ps))
-    return f2, f2!, cache
-end
 
 
 
@@ -184,41 +141,6 @@ function opt_func(hamfunc, fixedparams, basis, ad=nothing, target=x -> MPU(x) + 
     end
 end
 
-
-function get_initials(hamfunc::typeof(hamfunc_allϕ_ε), basis)
-    N = div(length(basis), 2)
-    [pi .* ones(N)..., zeros(div(N + 1, 2))...]
-end
-function get_initials(hamfunc::typeof(hamfunc_rϕε), basis)
-    N = div(length(basis), 2)
-    [ones(div(N + 1, 2))..., pi .* ones(div(N, 2))..., zeros(div(N + 1, 2))...]
-end
-function get_initials(hamfunc::typeof(hamfunc_ϕε), basis)
-    N = div(length(basis), 2)
-    [pi .* ones(div(N, 2))..., zeros(div(N + 1, 2))...]
-end
-function get_ranges(hamfunc::typeof(hamfunc_ϕε), basis)
-    N = div(length(basis), 2)
-    Nhalf = div(N + 1, 2)
-    δϕranges = [(0.0, 2.0pi) for i in 1:div(N, 2)]
-    εranges = [(-20.0, 20.0) for i in 1:Nhalf]
-    [δϕranges..., εranges...]
-end
-function get_ranges(hamfunc::typeof(hamfunc_rϕε), basis)
-    N = div(length(basis), 2)
-    Nhalf = div(N + 1, 2)
-    Δranges = [(0.01, 10.0) for i in 1:Nhalf]
-    δϕranges = [(0.0, 2.0pi) for i in 1:div(N, 2)]
-    εranges = [(-20.0, 20.0) for i in 1:Nhalf]
-    [Δranges..., δϕranges..., εranges...]
-end
-function get_ranges(hamfunc::typeof(hamfunc_allϕ_ε), basis)
-    N = div(length(basis), 2)
-    Nhalf = div(N + 1, 2)
-    ϕranges = [(0.0, 2.0pi) for i in 1:N]
-    εranges = [(-20.0, 20.0) for i in 1:Nhalf]
-    [ϕranges..., εranges...]
-end
 function SciMLBase.solve(prob::OptProb, alg; MaxTime=5, minexcgap=1 / 4, exps=collect(range(0.1, 3, length=4)), maxiters=1000, initials=get_initials(prob.hamfunc, prob.basis), kwargs...)
     f, fs = opt_func(prob, alg)
     refinements = length(exps)
@@ -321,3 +243,221 @@ function sweet_spot_scan((xs, xlabel), (ys, ylabel), get_ss=anti_parallel_sweet_
     return Dict(:sweet_spots => ss, :x => xs, :y => ys, :xlabel => xlabel, :ylabel => ylabel,
         :fixedparams => fixedparams, :MaxTime => MaxTime, :target => target, :Method => Method)
 end
+
+##
+struct OptParams{OD<:OrderedDict}
+    params::OD
+    OptParams(od::OD) where {OD<:OrderedDict} = new{OD}(od)
+end
+OptParams(itr) = OptParams(OrderedDict(pairs(itr)...))
+OptParams(itr...) = OptParams(OrderedDict(itr...))
+Base.pairs(p::OptParams) = pairs(p.params)
+get_initials(p::OptParams, N) = reduce(vcat, get_initials(key, type, N) for (key, type) in pairs(p))
+paramlength(p::OptParams, N) = reduce(+, paramlength(key, type, N) for (key, type) in pairs(p))
+get_ranges(p::OptParams, N) = reduce(vcat, get_ranges(key, type, N) for (key, type) in pairs(p))
+function get_initials(key, type, N)
+    l = paramlength(key, type, N)
+    v = paraminitial(key, type)
+    v .* ones(l)
+end
+paraminitial(key, type) = 0.0
+function paramlength(key, type, N)
+    Nhalf1 = div(N + 1, 2)
+    Nhalf2 = div(N, 2)
+    if key == :ϕ
+        if type == :refl
+            return Nhalf1
+        elseif type == :all
+            return N
+        end
+    elseif key == :Δ
+        if type == :refl
+            return Nhalf1
+        elseif type == :all
+            return N
+        end
+    elseif key == :ε
+        if type == :refl
+            return Nhalf1
+        elseif type == :all
+            return N
+        end
+    elseif key == :δϕ
+        if type == :refl
+            return Nhalf2
+        elseif type == :all
+            return N - 1
+        end
+    end
+end
+function get_ranges(key, type, N)
+    l = paramlength(key, type, N)
+    pb = param_bounds(key, type)
+    [pb for i in 1:l]
+end
+function param_bounds(key, type)
+    if key == :ϕ
+        return (0.0, 2pi)
+    elseif key == :Δ
+        return (0.01, 10.0)
+    elseif key == :ε
+        return (-50.0, 50.0)
+    elseif key == :δϕ
+        return (0.0, 2pi)
+    else
+        throw(ArgumentError("Don't know how to get bounds for $key"))
+    end
+end
+function param_variables(key, type, N)
+    l = paramlength(key, type, N)
+    vals = collect(only(@variables $key[1:l]))#, type)
+    if type == :refl
+        if key == :δϕ
+            return diffreflect(vals, N)
+        end
+        return reflect(vals, N)
+    elseif type == :all
+        return collect(vals)
+    else
+        throw(ArgumentError("Don't know how to get full length for $key, $type"))
+    end
+end
+function param_variables(p::OptParams, N)
+    NamedTuple(key => param_variables(key, type, N) for (key, type) in pairs(p) if key != :ϕ)
+end
+Base.keys(p::OptParams) = keys(p.params)
+function process_params!(params, optparams)
+    if :ϕ in keys(params)
+        params[:Δ] = @. params[:Δ] * exp(1im * params[:ϕ])
+        delete!(params, :ϕ)
+    end
+end
+# function param_full_length(vals, key, type, N)
+#     if type == :refl
+#         if key == :δϕ
+#             return diffreflect(vals, N)
+#         end
+#         return reflect(vals, N)
+#     elseif type == :all
+#         return collect(vals)
+#     else
+#         throw(ArgumentError("Don't know how to get full length for $key, $type"))
+#     end
+# end
+function hamfuncs(p::OptParams, c, fixedparams)
+    N = div(QuantumDots.nbr_of_fermions(c), 2)
+    params = merge(fixedparams, param_variables(p, N))
+    println(params)
+    process_params!(params, p)
+    println(params)
+    f, f! = LongerPoorMansMajoranas.build_whamiltonian(c; params...)
+    # f2(vals) = f(decompose(vals, p, N))
+    # f2!(out, vals) = f!(out, decompose(vals, p, N))
+    f2 = f
+    f2! = f!
+    ps = rand(sum(paramlength(key, type, N) for (key, type) in pairs(p)))
+    cache = get_cache(c, f2(ps))
+    return f2, f2!, cache
+
+end
+function decompose(vals, p::OptParams, N)
+    lengths = [paramlength(key, type, N) for (key, type) in collect(pairs(p))]
+    # println(lengths)
+    inds = pushfirst!(cumsum(lengths), 1)
+    # println(inds)
+    decomposed_vals = [vals[inds[n]:inds[n+1]] for n in 1:length(lengths)]
+    # println(decomposed_vals)
+    d = OrderedDict(zip(keys(p) |> collect, decomposed_vals))
+    # println(d)
+    return d
+    # return reduce(vcat, decomposed_vals)
+end
+# function get_splatter(p, N)
+#     splatter()
+#     splatter_rϕε(ps, N) = splatter_rϕε(decompose_rϕε(ps)..., N)
+#     function splatter_rϕε(rs, δϕs, ϵs, N)
+#         # N = div(2 * (length(rs) + length(δϕs) + length(ϵs)), 3)
+#         return vcat(reflect(rs, N) .* exp.(1im .* diffreflect(δϕs, N)), ϵs)
+#     end
+
+
+# end
+# function hamfunc_rϕε(c, fixedparams)
+#     N = div(QuantumDots.nbr_of_fermions(c), 2)
+#     Nhalf = div(N + 1, 2)
+#     @variables Δ[1:N], εs[1:Nhalf]::Real
+#     params = merge(fixedparams, (; Δ=collect(Δ[1:N]), ε=reflect(εs, N)))
+#     f, f! = LongerPoorMansMajoranas.build_whamiltonian(c; params...)
+#     f2(ps) = f(splatter_rϕε(ps, N))
+#     f2!(out, ps) = f!(out, splatter_rϕε(ps, N))
+#     ps = rand(2Nhalf + div(N, 2))
+#     cache = get_cache(c, f2(ps))
+#     return f2, f2!, cache
+# end
+# function hamfunc_ϕε(c, fixedparams)
+#     N = div(QuantumDots.nbr_of_fermions(c), 2)
+#     Nhalf = div(N + 1, 2)
+#     Nhalf2 = div(N, 2)
+#     @variables Δ[1:N], εs[1:Nhalf]::Real
+#     params = merge(fixedparams, (; Δ=collect(Δ[1:N]), ε=reflect(εs, N)))
+#     f, f! = LongerPoorMansMajoranas.build_whamiltonian(c; params...)
+#     splatter_ϕε(ps, N) = splatter_ϕε(decompose_ϕε(ps, N)..., N)
+#     splatter_ϕε(δϕs, ϵs, N) = vcat(fixedparams.Δ .* exp.(1im .* diffreflect(δϕs, N)), ϵs)
+#     f2(ps) = f(splatter_ϕε(ps, N))
+#     f2!(out, ps) = f!(out, splatter_ϕε(ps, N))
+#     ps = rand(N)
+#     cache = get_cache(c, Matrix(f2(ps)))
+#     # display(f2(ps))
+#     return f2, f2!, cache
+# end
+# function hamfunc_allϕ_ε(c, fixedparams)
+#     N = div(QuantumDots.nbr_of_fermions(c), 2)
+#     Nhalf = div(N + 1, 2)
+#     # Nhalf2 = div(N, 2)
+#     @variables Δ[1:N], εs[1:Nhalf]::Real
+#     params = merge(fixedparams, (; Δ=collect(Δ[1:N]), ε=reflect(εs, N)))
+#     f, f! = LongerPoorMansMajoranas.build_whamiltonian(c; params...)
+#     splatter_allϕ_ε(ps, N) = splatter_allϕ_ε(decompose_allϕ_ε(ps, N)..., N)
+#     splatter_allϕ_ε(ϕs, ϵs, N) = vcat(fixedparams.Δ .* exp.(1im .* ϕs), ϵs)
+#     f2(ps) = f(splatter_allϕ_ε(ps, N))
+#     f2!(out, ps) = f!(out, splatter_allϕ_ε(ps, N))
+#     ps = rand(N + Nhalf)
+#     cache = get_cache(c, f2(ps))
+#     return f2, f2!, cache
+# end
+
+# function get_initials(::\, basis)
+#     # function get_initials(hamfunc::typeof(hamfunc_allϕ_ε), basis)
+#     N = div(length(basis), 2)
+#     [pi .* ones(N)..., zeros(div(N + 1, 2))...]
+# end
+# function get_initials(hamfunc::typeof(hamfunc_rϕε), basis)
+#     N = div(length(basis), 2)
+#     [ones(div(N + 1, 2))..., pi .* ones(div(N, 2))..., zeros(div(N + 1, 2))...]
+# end
+# function get_initials(hamfunc::typeof(hamfunc_ϕε), basis)
+#     N = div(length(basis), 2)
+#     [pi .* ones(div(N, 2))..., zeros(div(N + 1, 2))...]
+# end
+# function get_ranges(hamfunc::typeof(hamfunc_ϕε), basis)
+#     N = div(length(basis), 2)
+#     Nhalf = div(N + 1, 2)
+#     δϕranges = [(0.0, 2.0pi) for i in 1:div(N, 2)]
+#     εranges = [(-20.0, 20.0) for i in 1:Nhalf]
+#     [δϕranges..., εranges...]
+# end
+# function get_ranges(hamfunc::typeof(hamfunc_rϕε), basis)
+#     N = div(length(basis), 2)
+#     Nhalf = div(N + 1, 2)
+#     Δranges = [(0.01, 10.0) for i in 1:Nhalf]
+#     δϕranges = [(0.0, 2.0pi) for i in 1:div(N, 2)]
+#     εranges = [(-20.0, 20.0) for i in 1:Nhalf]
+#     [Δranges..., δϕranges..., εranges...]
+# end
+# function get_ranges(hamfunc::typeof(hamfunc_allϕ_ε), basis)
+#     N = div(length(basis), 2)
+#     Nhalf = div(N + 1, 2)
+#     ϕranges = [(0.0, 2.0pi) for i in 1:N]
+#     εranges = [(-20.0, 20.0) for i in 1:Nhalf]
+#     [ϕranges..., εranges...]
+# end

@@ -49,7 +49,6 @@ end
 function build_whamiltonian(basis::FermionBasis; parameters...)
     symlist = get_symlist(parameters)
     bd = blockdiagonal(Matrix(whamiltonian(basis; parameters...)), basis)
-    # println(symlist)
     f, f! = build_function(bd, symlist, expression=Val{false})
     f2(x...) = hermitianpart!(f(x...))
     f2!(out, x...) = hermitianpart!(f!(out, x...))
