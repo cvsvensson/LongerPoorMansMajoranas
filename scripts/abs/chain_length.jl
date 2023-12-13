@@ -34,15 +34,13 @@ elseif c isa FermionBdGBasis
     f([1.0, 2.0]) |> Matrix |> BdGMatrix
 end
 @time f!(cache, [4.0, 2.1]);
-##'
-fixedparams = (; t=0.5, θ=parameter(π / 2, :diff), V=0, U=1 * 10, Ez=2, Δ=1)
-optparams = OptParams(:ε => :refl, :ϕ => :refl)
-optparams2 = OptParams(:ε => :refl, :ϕ => :refl, :Δ => :refl)
-@time f, f!, cache = LongerPoorMansMajoranas.hamfuncs(optparams, FermionBasis(1:2, (:↑, :↓), qn=QuantumDots.parity), fixedparams);
+##
+@time f, f!, cache = LongerPoorMansMajoranas.hamfunc_rϕε(FermionBasis(1:2, (:↑, :↓), qn=QuantumDots.parity), fixedparams);
 h1 = f(ones(3))
-@time f, f!, cache = LongerPoorMansMajoranas.hamfuncs(optparams2, FermionBasis(1:2, (:↑, :↓), qn=QuantumDots.parity), fixedparams);
-h2 = f(ones(3))
-
+##
+fp2 = @insert fixedparams.Δ = 1
+@time f, f!, cache = LongerPoorMansMajoranas.hamfunc_ϕε(FermionBasis(1:2, (:↑, :↓), qn=QuantumDots.parity), fp2);
+h2 = f(ones(2))
 ##
 c = FermionBasis(1:3, (:↑, :↓), qn=QuantumDots.parity)
 fixedparams = (; t=0.5, θ=parameter(2atan(2.0), :diff), V=0.2, U=2.5, Ez=1.25)
@@ -181,14 +179,14 @@ plot!(map(x -> log(MPU(x[1].optsol)), Ezsols1); clims=(-6, 0));
 plot!(map(x -> log(MPU(x[2].optsol)), Ezsols2); clims=(-6, 0))
 ##
 plot(map(x -> log(abs(x[1].optsol.gap)), Ezsols1); clims=(-6, 0));
-plot!(map(x -> log(abs(x[2].optsol.gap)), Ezsols2); clims=(-6, 0));
-plot!(map(x -> log(abs(x[1].optsol.gap)), Ezsols1); clims=(-6, 0));
-plot!(map(x -> log(abs(x[2].optsol.gap)), Ezsols2); clims=(-6, 0))
+plot!(map(x ->log(abs( x[2].optsol.gap)), Ezsols2); clims=(-6, 0));
+plot!(map(x ->log(abs( x[1].optsol.gap)), Ezsols1); clims=(-6, 0));
+plot!(map(x ->log(abs( x[2].optsol.gap)), Ezsols2); clims=(-6, 0))
 ##
 plot(map(x -> ((x[1].optsol.excgap)), Ezsols1); clims=(-6, 0));
-plot!(map(x -> ((x[2].optsol.excgap)), Ezsols2); clims=(-6, 0));
-plot!(map(x -> ((x[1].optsol.excgap)), Ezsols1); clims=(-6, 0));
-plot!(map(x -> ((x[2].optsol.excgap)), Ezsols2); clims=(-6, 0))
+plot!(map(x ->(( x[2].optsol.excgap)), Ezsols2); clims=(-6, 0));
+plot!(map(x ->(( x[1].optsol.excgap)), Ezsols1); clims=(-6, 0));
+plot!(map(x ->(( x[2].optsol.excgap)), Ezsols2); clims=(-6, 0))
 ##
 plot(map(x -> minimum(map(y -> log(LD(y.optsol)), x)), Ezsols1); clims=(-6, 0));
 plot!(map(x -> minimum(map(y -> log(LD(y.optsol)), x)), Ezsols2); clims=(-6, 0))

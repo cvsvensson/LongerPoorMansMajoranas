@@ -7,11 +7,10 @@ using Folds
 using StaticArrays
 using Symbolics
 using Optimization, OptimizationBBO, OptimizationOptimJL, OptimizationMetaheuristics
-using DataStructures
 
 export c, LD, LDf, MP, MPU, excgap
 export hamiltonian, cell_labels, fullsolve, reduced_similarity
-export get_sweet_spot, reflect, diffreflect, OptProb, best_algs, best_alg_names, OptParams
+export get_sweet_spot, reflect, diffreflect, OptProb, best_algs, best_alg_names
 export Transport, solve
 export charge_stability_scan
 
