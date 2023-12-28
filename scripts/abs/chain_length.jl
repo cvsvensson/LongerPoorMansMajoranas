@@ -8,7 +8,7 @@ using Accessors
 # using Optimization, OptimizationBBO, OptimizationNLopt, OptimizationOptimJL, OptimizationNOMAD, OptimizationEvolutionary, OptimizationMetaheuristics, OptimizationMultistartOptimization, OptimizationGCMAES, OptimizationCMAEvolutionStrategy, OptimizationPRIMA, Ipopt
 function plotmajcoeffs(ws, zs)
     k = string.(keys(ws).values)
-    labels = ["w", "z"]
+    labels = ["w", "z"] |> permutedims
     plot(k, [abs2.(ws).values, abs2.(zs).values], label=labels, legend=:topleft)
 end
 
@@ -35,12 +35,13 @@ elseif c isa FermionBdGBasis
 end
 @time f!(cache, [4.0, 2.1]);
 ##
-@time f, f!, cache = LongerPoorMansMajoranas.hamfunc_rϕε(FermionBasis(1:2, (:↑, :↓), qn=QuantumDots.parity), fixedparams);
-h1 = f(ones(3))
+@time f, f!, cache = hamfunc(RΔ_Rδϕ_Rε(), FermionBdGBasis(1:2, (:↑, :↓)), fixedparams);
+h1 = f([1, 2, 0])
 ##
 fp2 = @insert fixedparams.Δ = 1
-@time f, f!, cache = LongerPoorMansMajoranas.hamfunc_ϕε(FermionBasis(1:2, (:↑, :↓), qn=QuantumDots.parity), fp2);
-h2 = f(ones(2))
+@time f, f!, cache = hamfunc(Aϕ_Rε(), FermionBdGBasis(1:2, (:↑, :↓)), fp2);
+h2 = f([0, 2, 0])
+@assert norm(h1 - h2) < 1e-6
 ##
 c = FermionBasis(1:3, (:↑, :↓), qn=QuantumDots.parity)
 fixedparams = (; t=0.5, θ=parameter(2atan(2.0), :diff), V=0.2, U=2.5, Ez=1.25)
@@ -122,12 +123,31 @@ smb.excgap
 sbdg.excgap
 LDf.([smb, sbdg])
 ##
-basis = FermionBasis(1:3, (:↑, :↓), qn=QuantumDots.parity)
+# basis = FermionBasis(1:3, (:↑, :↓), qn=QuantumDots.parity)
 basis = FermionBdGBasis(1:2, (:↑, :↓))
-
-prob1 = OptProb(; hamfunc=LongerPoorMansMajoranas.hamfunc_allϕ_ε, basis, fixedparams=merge(fixedparams, (; U=0, Ez=3.5)), target=LD)
-sol1 = solve(prob1, best_algs()[1]; minexcgap=0.2, maxiters=10000, MaxTime=2)
-sol1.optsol |> LDf
+fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0, Δ=1.0, U=0, Ez=4.0)
+# optparams = Aϕ_Rε()
+optparams = Rδϕ_Rε()
+f, f!, cache = hamfunc(optparams, basis, fixedparams)
+prob1 = OptProb(; hamfunc=x -> f!(cache, x), basis, optparams)
+sol1 = solve(prob1, best_algs()[1]; minexcgap=0.2, maxiters=100000, MaxTime=10)
+sol1.optsol |> LD
+sol1.optsol |> MPU
+##
+function longersol(sol, fixedparams, N)
+    δϕ = sol[1]
+    ϕ = δϕ .* (0:N-1)
+    ε = parameter(sol[2], :homogeneous)
+    Δ = @. exp(1im * ϕ) * fixedparams.Δ
+    newparams = merge(fixedparams, (; Δ, ε))
+    basis = FermionBdGBasis(1:N, (:↑, :↓))
+    h = LongerPoorMansMajoranas.whamiltonian(basis; newparams...) |> hermitianpart! |> BdGMatrix
+    fullsolve(h, basis)
+end
+sols = [longersol(sol1.sol, n) for n in 2:10];
+MPU.(sols)
+##
+f, f!, cache = hamfunc(Aϕ_Rε(), basis, fixedparams)
 
 prob2 = OptProb(; hamfunc=LongerPoorMansMajoranas.hamfunc_rϕε, basis, fixedparams=merge(fixedparams, (; U=1, Ez=2)))
 sol2 = solve(prob2, best_algs()[1]; minexcgap=0.3, maxiters=10000, MaxTime=5)
@@ -149,28 +169,68 @@ map(x -> x.params, sols)
 
 
 ##
-fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0, Δ=1, U=0.0)
-hamfunc1 = LongerPoorMansMajoranas.hamfunc_ϕε
-hamfunc2 = LongerPoorMansMajoranas.hamfunc_allϕ_ε
-N = 4
-basis1 = FermionBasis(1:N, (:↑, :↓), qn=QuantumDots.parity)
-basis2 = FermionBdGBasis(1:N, (:↑, :↓))
-alginds = [1, 5]
-Ezsols1, Ezsols2 = let Ezs = collect(range(0.1, 8, length=10))
+Δ0 = 10
+fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0, Δ=Δ0, U=0.0)
+N = 2
+basis1 = FermionBdGBasis(1:N, (:↑, :↓))
+basis2 = basis1 #FermionBasis(1:N, (:↑, :↓), qn=QuantumDots.parity)
+op1 = Rδϕ_Rε()
+op2 = Aϕ_Rε()
+alginds = [1, 1, 2, 3, 4]
+Ezs_big = collect(range(0.1, 8, length=50)) .* Δ0
+Ezsols1_big, Ezsols2 = let Ezs = Ezs_big
     Ezsols1 = Vector{Any}(undef, length(Ezs))
     Ezsols2 = Vector{Any}(undef, length(Ezs))
     for (k, Ez) in collect(enumerate(Ezs))
-        prob1 = OptProb(; hamfunc=hamfunc1, basis=basis2, fixedparams=merge(fixedparams, (; Ez)))
-        prob2 = OptProb(; hamfunc=hamfunc2, basis=basis2, fixedparams=merge(fixedparams, (; Ez)))
-        algsols1 = [solve(prob1, alg; minexcgap=0.2, maxiters=10000, MaxTime=10) for alg in best_algs()[alginds]]
-        algsols2 = [solve(prob2, alg; minexcgap=0.2, maxiters=10000, MaxTime=10) for alg in best_algs()[alginds]]
+        fp = merge(fixedparams, (; Ez))
+        f1, f1!, cache1 = hamfunc(op1, basis1, fp)
+        # f2, f2!, cache2 = hamfunc(op2, basis2, fp)
+        prob1 = OptProb(; hamfunc=x -> f1!(cache1, x), basis=basis1, optparams=op1)
+        # prob2 = OptProb(; hamfunc=f2, basis=basis2, optparams=op2)
+        algsols1 = [solve(prob1, alg; minexcgap=0.2, maxiters=10000, MaxTime=5) for alg in best_algs()[alginds]]
+        # algsols2 = [solve(prob2, alg; minexcgap=0.2, maxiters=10000, MaxTime=2) for alg in best_algs()[alginds]]
         Ezsols1[k] = algsols1
-        Ezsols2[k] = algsols2
+        # Ezsols2[k] = algsols2
     end
     Ezsols1, Ezsols2
 end
 ##
-plot(map(x -> minimum(map(y -> log(MPU(y.optsol)), x)), Ezsols1); clims=(-6, 0));
+ldata = wload(datadir("Ezsols_big.jld2")) #todo for tomorrow
+wsave(datadir("Ezsols_big.jld2"), Dict(zip(string.(eachindex(Ezsols1_big)), Ezsols1_big)))
+##
+bestsols = map(x -> findmin(y -> MPU((y.optsol)), x)[2], Ezsols1)
+bestsols_big = map(x -> findmin(y -> MPU((y.optsol)), x)[2], Ezsols1_big)
+result = Dict("optparams"=>map((s,n) -> collect(s[n].sol), Ezsols1_big, bestsols_big), "Ez" => Ezs_big, "fixedparams" => fixedparams)
+wsave(datadir("Ezsols_big.jld2"), result)
+##
+Ns = 15:25
+sols = [longersol(Ezsols1[k][bestsols[k]].sol, merge(fixedparams, (; Ez)), N) for N in Ns, (k, Ez) in enumerate(Ezs)];
+sols_big = [longersol(Ezsols1_big[k][bestsols_big[k]].sol, merge(fixedparams, (; Ez)), N) for N in Ns, (k, Ez) in enumerate(Ezs_big)];
+sols_big = [longersol(ldata["optparams"][k], merge(fixedparams, (; Ez)), N) for N in Ns, (k, Ez) in enumerate(ldata["Ez"])];
+Ezs_big = ldata["Ez"]
+##
+heatmap(Ezs, Ns, map(log ∘ MPU, sols), c=cgrad(:viridis, rev=true), clims=(-6, 0), xlabel="Ez/Δ", ylabel="N", title="log(1-MPU)")
+pmpu = heatmap(Ezs_big ./ Δ0, Ns, map(log ∘ MPU, sols_big), c=cgrad(:viridis, rev=true), clims=(-6, 0), xlabel="Ez/Δ", ylabel="N", title="log(1-MPU)")
+##
+heatmap(Ezs, Ns, map(log ∘ LD, sols), c=cgrad(:viridis, rev=true), clims=(-6, 0), xlabel="Ez/Δ", ylabel="N", title="log(LD)")
+pld = heatmap(Ezs_big ./ Δ0, Ns, map(log ∘ LDf, sols_big), c=cgrad(:viridis, rev=true), clims=(-6, 0), xlabel="Ez/Δ", ylabel="N", title="log(LD)")
+##
+heatmap(Ezs, Ns, map(x -> log(abs(x.gap)), sols), c=cgrad(:viridis, rev=true), clims=(-5, 0), xlabel="Ez/Δ", ylabel="N", title="Egap")
+pgap = heatmap(Ezs, Ns, map(x -> log(abs(x.gap)), sols_big), c=cgrad(:viridis, rev=true), clims=(-5, 0), xlabel="Ez/Δ", ylabel="N", title="log(Egap)")
+##
+heatmap(Ezs, Ns, map(x -> log(abs(x.excgap)), sols), c=cgrad(:viridis, rev=true), clims=(-3, 0), xlabel="Ez/Δ", ylabel="N", title="Excgap")
+pexcgap = heatmap(Ezs, Ns, map(x -> (abs(x.excgap)), sols_big), c=cgrad(:viridis, rev=true), clims=(0, 0.2), xlabel="Ez/Δ", ylabel="N", title="Excgap")
+##
+heatmap(Ezs, Ns, map(x -> log(abs(x.gapratio)), sols_big), c=cgrad(:viridis, rev=true), clims=(-20, 0), xlabel="Ez/Δ", ylabel="N", title="gapratio")
+##
+plot(pmpu, pld, pgap, pexcgap; plot_title="Δ = 20t", size=(800, 600))
+##
+[display(plotmajcoeffs(s.majcoeffs...)) for s in sols_big[[1, 5, 10, 39], 80]];
+[display(plotmajcoeffs(s.majcoeffs...)) for s in sols_big[[1, 5, 10, 39], 52]];
+## 
+δϕ = π
+
+plot(map(x -> minimum(map(y -> log(MPU(y.optsol)), x)), Ezsols1); clims=(-6, 0))
 plot!(map(x -> minimum(map(y -> log(1e-10 + MPU(y.optsol)), x)), Ezsols2); clims=(-6, 0))
 ##
 plot(map(x -> log(MPU(x[1].optsol)), Ezsols1); clims=(-6, 0));
@@ -179,14 +239,14 @@ plot!(map(x -> log(MPU(x[1].optsol)), Ezsols1); clims=(-6, 0));
 plot!(map(x -> log(MPU(x[2].optsol)), Ezsols2); clims=(-6, 0))
 ##
 plot(map(x -> log(abs(x[1].optsol.gap)), Ezsols1); clims=(-6, 0));
-plot!(map(x ->log(abs( x[2].optsol.gap)), Ezsols2); clims=(-6, 0));
-plot!(map(x ->log(abs( x[1].optsol.gap)), Ezsols1); clims=(-6, 0));
-plot!(map(x ->log(abs( x[2].optsol.gap)), Ezsols2); clims=(-6, 0))
+plot!(map(x -> log(abs(x[2].optsol.gap)), Ezsols2); clims=(-6, 0));
+plot!(map(x -> log(abs(x[1].optsol.gap)), Ezsols1); clims=(-6, 0));
+plot!(map(x -> log(abs(x[2].optsol.gap)), Ezsols2); clims=(-6, 0))
 ##
 plot(map(x -> ((x[1].optsol.excgap)), Ezsols1); clims=(-6, 0));
-plot!(map(x ->(( x[2].optsol.excgap)), Ezsols2); clims=(-6, 0));
-plot!(map(x ->(( x[1].optsol.excgap)), Ezsols1); clims=(-6, 0));
-plot!(map(x ->(( x[2].optsol.excgap)), Ezsols2); clims=(-6, 0))
+plot!(map(x -> ((x[2].optsol.excgap)), Ezsols2); clims=(-6, 0));
+plot!(map(x -> ((x[1].optsol.excgap)), Ezsols1); clims=(-6, 0));
+plot!(map(x -> ((x[2].optsol.excgap)), Ezsols2); clims=(-6, 0))
 ##
 plot(map(x -> minimum(map(y -> log(LD(y.optsol)), x)), Ezsols1); clims=(-6, 0));
 plot!(map(x -> minimum(map(y -> log(LD(y.optsol)), x)), Ezsols2); clims=(-6, 0))
@@ -197,7 +257,7 @@ map(x -> x[2].optsol.excgap, Ezsols1)
 map(x -> x[2].sol |> collect, Ezsols1)
 map(x -> x[2].sol |> collect, Ezsols2)
 map(x -> x[2].sol[1:2] |> diff |> only, Ezsols2)
-map(x -> findmin(y -> log(LD(y.optsol)), x)[2], Ezsols1)
+bestols = map(x -> findmin(y -> MPU((y.optsol)), x)[2], Ezsols1)
 
 
 ##

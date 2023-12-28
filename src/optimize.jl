@@ -1,3 +1,8 @@
+abstract type AbstractOptParams end
+struct Aϕ_Rε <: AbstractOptParams end
+struct RΔ_Rδϕ_Rε <: AbstractOptParams end
+struct Rδϕ_Rε <: AbstractOptParams end
+
 Base.@kwdef struct BBOptimizer{f,r,i,t,ec,B}
     hamfunc::f
     ranges::Vector{r}
@@ -66,7 +71,9 @@ function splatter_rϕε(rs, δϕs, ϵs, N)
     # N = div(2 * (length(rs) + length(δϕs) + length(ϵs)), 3)
     return vcat(reflect(rs, N) .* exp.(1im .* diffreflect(δϕs, N)), ϵs)
 end
-
+hamfunc(::RΔ_Rδϕ_Rε, c, fixedparams) = hamfunc_rϕε(c, fixedparams)
+hamfunc(::Rδϕ_Rε, c, fixedparams) = hamfunc_ϕε(c, fixedparams)
+hamfunc(::Aϕ_Rε, c, fixedparams) = hamfunc_allϕ_ε(c, fixedparams)
 function hamfunc_rϕε(c, fixedparams)
     N = div(QuantumDots.nbr_of_fermions(c), 2)
     Nhalf = div(N + 1, 2)
@@ -141,20 +148,20 @@ get_cache(c::FermionBdGBasis, ham) = (Matrix(ham))
 @kwdef struct OptProb{F,B,P,T}
     hamfunc::F
     basis::B
-    fixedparams::P
+    optparams::P
     target::T = x -> MPU(x) + LDf(x)
 end
 
-opt_func(opt::OptProb, ::IPNewton) = opt_func_cons(opt.hamfunc, opt.fixedparams, opt.basis, AutoFiniteDiff(), opt.target)
-opt_func(opt::OptProb, ::Optim.ConjugateGradient) = opt_func(opt.hamfunc, opt.fixedparams, opt.basis, AutoFiniteDiff(), opt.target)
-opt_func(opt::OptProb, ::NelderMead) = opt_func(opt.hamfunc, opt.fixedparams, opt.basis, AutoFiniteDiff(), opt.target)
-opt_func(opt::OptProb, alg) = opt_func(opt.hamfunc, opt.fixedparams, opt.basis, nothing, opt.target)
+opt_func(opt::OptProb, ::IPNewton) = opt_func_cons(opt.hamfunc, opt.basis, AutoFiniteDiff(), opt.target)
+opt_func(opt::OptProb, ::Optim.ConjugateGradient) = opt_func(opt.hamfunc, opt.basis, AutoFiniteDiff(), opt.target)
+opt_func(opt::OptProb, ::NelderMead) = opt_func(opt.hamfunc, opt.basis, AutoFiniteDiff(), opt.target)
+opt_func(opt::OptProb, alg) = opt_func(opt.hamfunc, opt.basis, nothing, opt.target)
 
 
-function opt_func_cons(hamfunc, fixedparams, basis, ad=nothing, target=x -> MPU(x) + LDf(x))
-    f0, f!, cache = hamfunc(basis, fixedparams)
+function opt_func_cons(hamfunc, basis, ad=nothing, target=x -> MPU(x) + LDf(x))
+    # f0, f!, cache = hamfunc(basis, fixedparams)
     extra_cost(a, b) = 0.0
-    fullsolve2(x) = fullsolve(f!(cache, x), basis)
+    fullsolve2(x) = fullsolve(hamfunc(x), basis)
     cost(x, p) = target(fullsolve2(x))
     function cons(res, x, minexcgap)
         sol = fullsolve2(x)
@@ -167,11 +174,11 @@ function opt_func_cons(hamfunc, fixedparams, basis, ad=nothing, target=x -> MPU(
         return OptimizationFunction(cost, ad; cons), fullsolve2
     end
 end
-function opt_func(hamfunc, fixedparams, basis, ad=nothing, target=x -> MPU(x) + LDf(x))
-    f0, f!, cache = hamfunc(basis, fixedparams)
+function opt_func(hamfunc, basis, ad=nothing, target=x -> MPU(x) + LDf(x))
+    # f0, f!, cache = hamfunc(basis, fixedparams)
     # target = x -> MPU(x) + LDf(x)
     extra_cost(a, b) = 0.0
-    f2(x) = fullsolve(f!(cache, x), basis)
+    f2(x) = fullsolve(hamfunc(x), basis)
     # f2(x) = fullsolve(f0(x), basis)
     function f(x, (exp, minexcgap))
         sol = f2(x)
@@ -184,73 +191,75 @@ function opt_func(hamfunc, fixedparams, basis, ad=nothing, target=x -> MPU(x) + 
     end
 end
 
+get_initials(prob::OptProb) = get_initials(prob.optparams, div(length(prob.basis), 2))
+get_ranges(prob::OptProb) = get_ranges(prob.optparams, div(length(prob.basis), 2))
+initial_Aϕ(N) = zeros(N)
+initial_Rε(N) = zeros(div(N + 1, 2))
+initial_Rδϕ(N) = pi / 2 .* ones(div(N, 2))
+initial_RΔ(N) = ones(div(N + 1, 2))
+ranges_Aϕ(N) = [(0.0, 2.0pi) for i in 1:N]
+ranges_Rε(N) = [100 .* (-1, 1) for i in 1:div(N + 1, 2)]
+ranges_Rδϕ(N) = [(0.0, 2.0pi) for i in 1:div(N, 2)]
+ranges_RΔ(N) = [(0.01, 10.0) for i in 1:div(N + 1, 2)]
 
-function get_initials(hamfunc::typeof(hamfunc_allϕ_ε), basis)
-    N = div(length(basis), 2)
-    [pi .* ones(N)..., zeros(div(N + 1, 2))...]
+function get_initials(::Aϕ_Rε, N)
+    vcat(initial_Aϕ(N), initial_Rε(N))
 end
-function get_initials(hamfunc::typeof(hamfunc_rϕε), basis)
-    N = div(length(basis), 2)
-    [ones(div(N + 1, 2))..., pi .* ones(div(N, 2))..., zeros(div(N + 1, 2))...]
+function get_initials(::RΔ_Rδϕ_Rε, N)
+    vcat(initial_RΔ(N), initial_Rδϕ(N), initial_Rε(N))
 end
-function get_initials(hamfunc::typeof(hamfunc_ϕε), basis)
-    N = div(length(basis), 2)
-    [pi .* ones(div(N, 2))..., zeros(div(N + 1, 2))...]
+function get_initials(::Rδϕ_Rε, N)
+    vcat(initial_Rδϕ(N), initial_Rε(N))
 end
-function get_ranges(hamfunc::typeof(hamfunc_ϕε), basis)
-    N = div(length(basis), 2)
-    Nhalf = div(N + 1, 2)
-    δϕranges = [(0.0, 2.0pi) for i in 1:div(N, 2)]
-    εranges = [(-20.0, 20.0) for i in 1:Nhalf]
-    [δϕranges..., εranges...]
+function get_ranges(::Rδϕ_Rε, N)
+    δϕranges = ranges_Rδϕ(N)
+    εranges = ranges_Rε(N)
+    vcat(δϕranges, εranges)
 end
-function get_ranges(hamfunc::typeof(hamfunc_rϕε), basis)
-    N = div(length(basis), 2)
-    Nhalf = div(N + 1, 2)
-    Δranges = [(0.01, 10.0) for i in 1:Nhalf]
-    δϕranges = [(0.0, 2.0pi) for i in 1:div(N, 2)]
-    εranges = [(-20.0, 20.0) for i in 1:Nhalf]
-    [Δranges..., δϕranges..., εranges...]
+function get_ranges(::RΔ_Rδϕ_Rε, N)
+    Δranges = ranges_RΔ(N)
+    δϕranges = ranges_Rδϕ(N)
+    εranges = ranges_Rε(N)
+    vcat(Δranges, δϕranges, εranges)
 end
-function get_ranges(hamfunc::typeof(hamfunc_allϕ_ε), basis)
-    N = div(length(basis), 2)
-    Nhalf = div(N + 1, 2)
-    ϕranges = [(0.0, 2.0pi) for i in 1:N]
-    εranges = [(-20.0, 20.0) for i in 1:Nhalf]
-    [ϕranges..., εranges...]
+function get_ranges(::Aϕ_Rε, N)
+    ϕranges = ranges_Aϕ(N)
+    εranges = ranges_Rε(N)
+    vcat(ϕranges, εranges)
 end
-function SciMLBase.solve(prob::OptProb, alg; MaxTime=5, minexcgap=1 / 4, exps=collect(range(0.1, 3, length=4)), maxiters=1000, initials=get_initials(prob.hamfunc, prob.basis), kwargs...)
+default_exps() = collect(range(0.5, 3, length=4))
+function SciMLBase.solve(prob::OptProb, alg; MaxTime=5, minexcgap=1 / 4, exps=default_exps(), maxiters=1000, initials=get_initials(prob), kwargs...)
     f, fs = opt_func(prob, alg)
     refinements = length(exps)
     maxtime = MaxTime / refinements
-    ranges = get_ranges(prob.hamfunc, prob.basis)
+    ranges = get_ranges(prob)
     lb = map(first, ranges)
     ub = map(last, ranges)
     newinitials = map(clamp, initials, lb, ub)
     println("Initial point: ", newinitials)
-    prob = OptimizationProblem(f, newinitials, (first(exps), minexcgap); lb, ub)
-    sol = solve(prob, alg; maxiters, maxtime)
+    prob2 = OptimizationProblem(f, newinitials, (first(exps), minexcgap); lb, ub)
+    sol = solve(prob2, alg; maxiters, maxtime)
     for (n, exp) in enumerate(Iterators.drop(exps, 1))
         newinitials = map(clamp, sol.u, lb, ub)
         println("$n, Sweet spot:", newinitials)
-        prob = OptimizationProblem(f, initials, (exp, minexcgap); lb=map(first, ranges), ub=map(last, ranges))
-        sol = solve(prob, alg; maxiters, maxtime, kwargs...)
+        prob2 = OptimizationProblem(f, initials, (exp, minexcgap); lb=map(first, ranges), ub=map(last, ranges))
+        sol = solve(prob2, alg; maxiters, maxtime, kwargs...)
     end
     optsol = fs(sol)
     # params = NamedTuple(zip((:Δ, :δϕ, :ε), decompose(sol)))
     return (; alg, sol, optsol)
 end
 
-function SciMLBase.solve(prob::OptProb, alg::IPNewton; MaxTime=5, minexcgap=1 / 4, maxiters=1000, initials=get_initials(prob.hamfunc, prob.basis), kwargs...)
-    ranges = get_ranges(prob.hamfunc, prob.basis)
+function SciMLBase.solve(prob::OptProb, alg::IPNewton; MaxTime=5, minexcgap=1 / 4, maxiters=1000, initials=get_initials(prob), kwargs...)
+    ranges = get_ranges(prob)
     lb = map(first, ranges)
     ub = map(last, ranges)
     println("Initial point: ", initials)
     lcons = [0.0, 0.0]
     ucons = [0.0, Inf]
     f, fs = opt_func(prob, alg)
-    prob = OptimizationProblem(f, initials, minexcgap; lb, ub, lcons, ucons, kwargs...)#, allow_f_increases = true, store_trace = true)
-    sol = solve(prob, alg; maxiters, maxtime=MaxTime, kwargs...)
+    prob2 = OptimizationProblem(f, initials, minexcgap; lb, ub, lcons, ucons, kwargs...)#, allow_f_increases = true, store_trace = true)
+    sol = solve(prob2, alg; maxiters, maxtime=MaxTime, kwargs...)
     optsol = fs(sol)
     # params = NamedTuple(zip((:Δ, :δϕ, :ε), decompose(sol)))
     return (; alg, sol, optsol)

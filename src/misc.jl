@@ -76,11 +76,11 @@ function reduced_similarity(qps::AbstractVector{<:QuantumDots.QuasiParticle})
     ρodd = QuantumDots.one_particle_density_matrix(qps[vcat(1:N-1, N + 1)])
     # matrixlabels = Base.product(labels,labels)
     cell_positions(n) = [basis.position[cl] for cl in cell_labels(n, basis)]
-    cinds(n) = [cell_positions(n)..., (cell_positions(n) .+ N)...]
-    cell_matrices = (; even=map(n -> ρeven[cinds(n), cinds(n)], 1:div(N, 2)), odd=map(n -> ρodd[cinds(n), cinds(n)], 1:div(N, 2)))
+    cinds(n) = vcat(cell_positions(n), (cell_positions(n) .+ N))
+    #cell_matrices = (; even=map(n -> ρeven[cinds(n), cinds(n)], 1:div(N, 2)), odd=map(n -> ρodd[cinds(n), cinds(n)], 1:div(N, 2)))
     fermions = QuantumDots.Dictionary(labels, [norm(ρeven[[n, n + N], [n, n + N]] - ρodd[[n, n + N], [n, n + N]], 2) for n in 1:length(labels)])
     cells = QuantumDots.Dictionary(1:div(N, 2), [norm(ρeven[cinds(n), cinds(n)] - ρodd[cinds(n), cinds(n)], 2) for n in 1:div(N, 2)])
-    return (; fermions, cells, cell_matrices)
+    return (; fermions, cells)#, cell_matrices)
 end
 
 function half_majorana_polarizations(majcoeffs, basis)
@@ -111,12 +111,16 @@ function fullsolve(H, basis::FermionBasis; reduced=true, transport=missing, oddv
     return (; gap=oddvals[oddvalindex] - first(evenvals), gapratio=gapratio(oddvals, evenvals), reduced, mps, majcoeffs, energies=(oddvals, evenvals), conductance, excgap=excgap(oddvals, evenvals))
 end
 
-function fullsolve(H, basis::FermionBdGBasis; reduced=true, transport=missing, cutoff=1e-10)
+function fullsolve(H::BdGMatrix, basis::FermionBdGBasis; reduced=true, transport=missing, cutoff=1e-10)
     N = QuantumDots.nbr_of_fermions(basis)
     es, ops = diagonalize(H)
     # es, ops = QuantumDots.enforce_ph_symmetry(eigen(H))
     if !QuantumDots.check_ph_symmetry(es, ops; cutoff)
-        @warn "particle-hole symmetry not valid? $es \n $ops"
+    @warn "particle-hole symmetry not valid?" #$es \n $ops"
+    # p = sortperm(es, by=QuantumDots.energysort)
+    # inds = Iterators.take(eachindex(es), N)
+    # display(sum(abs(es[p[i]] + es[p[QuantumDots.quasiparticle_adjoint_index(i, N)]]) for i in inds))
+    # norm(ops' * ops - I) |> display
     end
     qps = map(op -> QuantumDots.QuasiParticle(op, basis), eachcol(ops))
     best_majorana = qps[N]
