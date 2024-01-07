@@ -37,7 +37,7 @@ Base.@kwdef struct Optimizer{f,r,i,t,ec,B}
 end
 
 
-cost_function(gap, excgap, reduced::Number; exp=12.0, minexcgap) = cost_reduced(reduced) + cost_energy(gap, excgap; exp, minexcgap)
+cost_function(gap, excgap, reduced::Number; exp, minexcgap) = cost_reduced(reduced) + cost_energy(gap, excgap; exp, minexcgap)
 cost_energy(gap, excgap; minexcgap, exp) = cost_gap(gap, exp) + cost_excgap(excgap, minexcgap, exp)
 cost_excgap(excgap, minexcgap, exp) = ((excgap - minexcgap) < 0 ? 1.0 + 10.0^exp * abs(excgap - minexcgap) : 0.0)
 # cost_gap(gap, exp) = abs(gap) > 2 * 10.0^(-exp) ? 1.0 + 10^(exp) * abs2(gap) : abs2(gap)
@@ -198,8 +198,8 @@ initial_Rε(N) = zeros(div(N + 1, 2))
 initial_Rδϕ(N) = pi / 2 .* ones(div(N, 2))
 initial_RΔ(N) = ones(div(N + 1, 2))
 ranges_Aϕ(N) = [(0.0, 2.0pi) for i in 1:N]
-ranges_Rε(N) = [100 .* (-1, 1) for i in 1:div(N + 1, 2)]
-ranges_Rδϕ(N) = [(0.0, 2.0pi) for i in 1:div(N, 2)]
+ranges_Rε(N) = [100 .* (0, 1) for i in 1:div(N + 1, 2)]
+ranges_Rδϕ(N) = [(0.0, 1.0pi) for i in 1:div(N, 2)]
 ranges_RΔ(N) = [(0.01, 10.0) for i in 1:div(N + 1, 2)]
 
 function get_initials(::Aϕ_Rε, N)
@@ -227,7 +227,7 @@ function get_ranges(::Aϕ_Rε, N)
     εranges = ranges_Rε(N)
     vcat(ϕranges, εranges)
 end
-default_exps() = collect(range(0.5, 3, length=4))
+default_exps() = collect(range(0.1, 3, length=5))
 function SciMLBase.solve(prob::OptProb, alg; MaxTime=5, minexcgap=1 / 4, exps=default_exps(), maxiters=1000, initials=get_initials(prob), kwargs...)
     f, fs = opt_func(prob, alg)
     refinements = length(exps)

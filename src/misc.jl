@@ -110,17 +110,23 @@ function fullsolve(H, basis::FermionBasis; reduced=true, transport=missing, oddv
     conductance = conductance_matrix(transport, eig; basis)
     return (; gap=oddvals[oddvalindex] - first(evenvals), gapratio=gapratio(oddvals, evenvals), reduced, mps, majcoeffs, energies=(oddvals, evenvals), conductance, excgap=excgap(oddvals, evenvals))
 end
-
+using SparseArrays 
 function fullsolve(H::BdGMatrix, basis::FermionBdGBasis; reduced=true, transport=missing, cutoff=1e-10)
     N = QuantumDots.nbr_of_fermions(basis)
-    es, ops = diagonalize(H)
+    es, ops = try
+        diagonalize(H)
+    catch y
+        println(sparse(QuantumDots.bdg_to_skew(H)))
+        rethrow()
+    end
+    # es, ops = diagonalize(H)
     # es, ops = QuantumDots.enforce_ph_symmetry(eigen(H))
     if !QuantumDots.check_ph_symmetry(es, ops; cutoff)
-    @warn "particle-hole symmetry not valid?" #$es \n $ops"
-    # p = sortperm(es, by=QuantumDots.energysort)
-    # inds = Iterators.take(eachindex(es), N)
-    # display(sum(abs(es[p[i]] + es[p[QuantumDots.quasiparticle_adjoint_index(i, N)]]) for i in inds))
-    # norm(ops' * ops - I) |> display
+        @warn "particle-hole symmetry not valid?" #$es \n $ops"
+        # p = sortperm(es, by=QuantumDots.energysort)
+        # inds = Iterators.take(eachindex(es), N)
+        # display(sum(abs(es[p[i]] + es[p[QuantumDots.quasiparticle_adjoint_index(i, N)]]) for i in inds))
+        # norm(ops' * ops - I) |> display
     end
     qps = map(op -> QuantumDots.QuasiParticle(op, basis), eachcol(ops))
     best_majorana = qps[N]
