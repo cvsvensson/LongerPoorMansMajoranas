@@ -7,6 +7,10 @@ using Symbolics
 using Folds
 using Accessors
 
+function extrapolate_ss_initials(sol, N)
+    δϕ = sol[1]
+    vcat([δϕ for k in 1:div(N, 2)], [sol[2] for n in 1:div(N + 1, 2)])
+end
 function extrapolate_ss(sol, fixedparams, N)
     δϕ = sol[1]
     ϕ = δϕ .* (0:N-1)
@@ -30,8 +34,8 @@ Ezsols = let
     Ezsols = Vector{Any}(undef, length(Ezs))
     for (k, Ez) in collect(enumerate(Ezs))
         fp = merge(fixedparams, (; Ez))
-        f, f!, cache1 = hamfunc(optim, basis, fp)
-        prob = OptProb(; hamfunc=x -> f!(cache, x), basis, optparams=op1)
+        f, f!, cache = hamfunc(optim, basis, fp)
+        prob = OptProb(; hamfunc=x -> f!(cache, x), basis, optparams=optim)
         algsols = [solve(prob, alg; minexcgap=0.1, maxiters=1000000, MaxTime=2, exps=range(0.1, 3, 5)) for alg in best_algs()[alginds]]
         Ezsols[k] = algsols
     end
@@ -40,7 +44,30 @@ end;
 bestsols = map(x -> findmin(y -> MPU((y.optsol)), x)[2], Ezsols)
 result = Dict("optparams" => map((s, n) -> collect(s[n].sol), Ezsols, bestsols), "Ez" => Ezs, "fixedparams" => fixedparams)
 ##
-wsave(datadir("Ezsols_small_.jld2"), result)
+# result2 = result
+N = 3
+basis = FermionBdGBasis(1:N, (:↑, :↓))
+Ezs = result2["Ez"]
+Ezsols3 = let
+    Ezsols = Vector{Any}(undef, length(Ezs))
+    for (k, Ez) in collect(enumerate(Ezs))
+        fp = merge(result2["fixedparams"], (; Ez))
+        f, f!, cache = hamfunc(optim, basis, fp)
+        prob = OptProb(; hamfunc=x -> f!(cache, x), basis, optparams=optim)
+        initials = extrapolate_ss_initials(result2["optparams"][k], N)
+        println(initials)
+        algsols = [solve(prob, alg; initials, minexcgap=0.1, maxiters=1000000, MaxTime=2, exps=range(0.1, 3, 5)) for alg in best_algs()[alginds]]
+        Ezsols[k] = algsols
+    end
+    Ezsols
+end;
+bestsols3 = map(x -> findmin(y -> MPU((y.optsol)), x)[2], Ezsols3)
+result3 = Dict("optparams" => map((s, n) -> collect(s[n].sol), Ezsols3, bestsols3), "Ez" => Ezs, "fixedparams" => fixedparams)
+##
+map(MPU,result3)
+
+##
+wsave(sdatadir("Ezsols_small_N3.jld2"), result3)
 ##
 data_small = wload(datadir("Ezsols_small.jld2"))
 data_big = wload(datadir("Ezsols_big3.jld2"))

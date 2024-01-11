@@ -19,6 +19,10 @@ end
 # transport = Transport(QuantumDots.Pauli(), (; T=1 / 40, μ=(0.0, 0.0)))
 ##
 N = 2
+
+
+##
+N = 2
 fixedparams = (; t=0.5, θ=parameter(π / 2, :diff), V=0, U=1 * 10, Ez=2)
 c = FermionBasis(1:N, (:↑, :↓), qn=QuantumDots.parity)
 cbdg = FermionBdGBasis(1:N, (:↑, :↓))
@@ -45,11 +49,10 @@ h2 = f([0, 2, 0])
 ##
 c = FermionBasis(1:3, (:↑, :↓), qn=QuantumDots.parity)
 fixedparams = (; t=0.5, θ=parameter(2atan(2.0), :diff), V=0.2, U=2.5, Ez=1.25)
-f, f!, cache = LongerPoorMansMajoranas.get_hamfuncs(c, fixedparams);
-H = f([1, 1, 1])
+f, f!, cache = hamfunc(RΔ_Rδϕ_Rε(), c, fixedparams);
+H = f([1, 1, 1, 1, 1])
 tr(H)
 eigvals(H)
-
 sol = fullsolve(H, c)
 ##
 c = FermionBasis(1:3, (:↑, :↓), qn=QuantumDots.parity)

@@ -71,6 +71,7 @@ function splatter_rϕε(rs, δϕs, ϵs, N)
     # N = div(2 * (length(rs) + length(δϕs) + length(ϵs)), 3)
     return vcat(reflect(rs, N) .* exp.(1im .* diffreflect(δϕs, N)), ϵs)
 end
+
 hamfunc(::RΔ_Rδϕ_Rε, c, fixedparams) = hamfunc_rϕε(c, fixedparams)
 hamfunc(::Rδϕ_Rε, c, fixedparams) = hamfunc_ϕε(c, fixedparams)
 hamfunc(::Aϕ_Rε, c, fixedparams) = hamfunc_allϕ_ε(c, fixedparams)
