@@ -64,13 +64,41 @@ end;
 bestsols3 = map(x -> findmin(y -> MPU((y.optsol)), x)[2], Ezsols3)
 result3 = Dict("optparams" => map((s, n) -> collect(s[n].sol), Ezsols3, bestsols3), "Ez" => Ezs, "fixedparams" => fixedparams)
 ##
-map(MPU,result3)
+map(MPU, result3)
 
 ##
 wsave(sdatadir("Ezsols_small_N3.jld2"), result3)
 ##
-data_small = wload(datadir("Ezsols_small.jld2"))
+data_small2 = wload(datadir("Ezsols_small.jld2"))
+data_small3 = wload(datadir("Ezsols_small_N3.jld2"))
 data_big = wload(datadir("Ezsols_big3.jld2"))
+##
+optim = Rδϕ_Rε()
+sols3 = let data = data_small3, basis = FermionBdGBasis(1:3, (:↑, :↓))
+    Ezs = data["Ez"]
+    fixedparams = data["fixedparams"]
+    optparams = data["optparams"]
+    sols = Vector{Any}(undef, length(Ezs))
+    for (k, (Ez, ps)) in collect(enumerate(zip(Ezs, optparams)))
+        fp = merge(fixedparams, (; Ez))
+        f, f!, cache = hamfunc(optim, basis, fp)
+        H = f!(cache, ps)
+        sols[k] = fullsolve(H, basis)
+    end
+    sols
+end;
+##
+plot(map(MPU, sols2))
+plot!(map(MPU, sols3))
+plot(map(LD, sols2))
+plot!(map(LD, sols3))
+plot(map(x->x.excgap, sols2))
+plot!(map(x->x.excgap, sols3))
+plot(map(x->x.gap, sols2))
+plot!(map(x->x.gap, sols3))
+
+##
+
 ## Study the extrapolated sweet spot
 function get_extrapolated_sols(optdata, Ns)
     [extrapolate_ss(optdata["optparams"][k], merge(optdata["fixedparams"], (; Ez)), N) for N in Ns, (k, Ez) in enumerate(optdata["Ez"])]
@@ -79,7 +107,6 @@ end
 Ns = 2:40
 sols_small = get_extrapolated_sols(data_small, Ns)
 sols_big = get_extrapolated_sols(data_big, Ns)
-
 
 ## Plotting
 function plot_extrapolated_ss(optdata, extrapolated_ss; clims=(-3, 0))
