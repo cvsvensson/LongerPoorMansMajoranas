@@ -101,13 +101,20 @@ plot!(map(x -> x.gap, extrapolatedsols))
 ##
 map(MPU, result3)
 ##
-Δ0 = 10
-fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0, Δ=Δ0, U=0.0)
-f, f!, cache = hamfunc(optim, basis, merge(fixedparams, (; Ez=5 * Δ0)))
+εguess(Δ, Ez) = sqrt(Ez^2 - Δ^2)
 ##
-ε1 = range(4.88, 4.92, length=100) .* Δ0
-ε2 = range(4.85, 5, length=200) .* Δ0
-δϕ = range(pi/4, π/2, length=5)
+Δ0 = 10
+fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0, Δ=Δ0, U=4.0)
+basis = FermionBasis(1:3, (:↑, :↓); qn=QuantumDots.parity)
+# basis  = FermionBdGBasis(1:3, (:↑, :↓))
+fp = merge(fixedparams, (; Ez=3 * Δ0))
+optim = Rδϕ_Rε()
+f, f!, cache = hamfunc(optim, basis, fp)
+##
+ε0 = εguess(fp.Δ, fp.Ez)
+ε1 = ε0 .+ range(-.1, .1, length=100) .* Δ0
+ε2 = ε0 .+ range(-.1, .1, length=100) .* Δ0
+δϕ = range(pi / 2, π, length=5)
 sols3d = [fullsolve(f!(cache, [δϕ, ε1, ε2]), basis) for (δϕ, ε1, ε2) in Iterators.product(δϕ, ε1, ε2)]
 ##
 function slice_plot(sols, ε1=ε1, ε2=ε2)
