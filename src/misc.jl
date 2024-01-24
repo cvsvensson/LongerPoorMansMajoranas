@@ -110,7 +110,7 @@ function fullsolve(H, basis::FermionBasis; reduced=true, transport=missing, oddv
     conductance = conductance_matrix(transport, eig; basis)
     return (; gap=oddvals[oddvalindex] - first(evenvals), gapratio=gapratio(oddvals, evenvals), reduced, mps, majcoeffs, energies=(oddvals, evenvals), conductance, excgap=excgap(oddvals, evenvals))
 end
-using SparseArrays 
+using SparseArrays
 function fullsolve(H::BdGMatrix, basis::FermionBdGBasis; reduced=true, transport=missing, cutoff=1e-10)
     N = QuantumDots.nbr_of_fermions(basis)
     es, ops = try
@@ -151,8 +151,10 @@ excgap(odd, even) = min(odd[2] - odd[1], even[2] - even[1])
 excgap(sol) = excgap(sol.energies...)
 
 
-LD(sol) = sum(sol.reduced.cells)
+LD(sol) = sum(sol.reduced.cells) #maximum(sol.reduced.cells)#
+LDmax(sol) = maximum(sol.reduced.cells)
 LDf(sol) = sum(sol.reduced.fermions)
+LDfmax(sol) = maximum(sol.reduced.fermions)
 MP(sol) = 1 - (abs(sol.mps.left.mp) + abs(sol.mps.right.mp)) / 2
 MPU(sol) = 1 - (abs(sol.mps.left.mpu) + abs(sol.mps.right.mpu)) / 2
 
