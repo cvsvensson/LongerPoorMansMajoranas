@@ -2,6 +2,7 @@ abstract type AbstractOptParams end
 struct Aϕ_Rε <: AbstractOptParams end
 struct RΔ_Rδϕ_Rε <: AbstractOptParams end
 struct Rδϕ_Rε <: AbstractOptParams end
+struct Aδϕ_Aε <: AbstractOptParams end
 
 Base.@kwdef struct BBOptimizer{f,r,i,t,ec,B}
     hamfunc::f
@@ -54,26 +55,30 @@ function decompose_rϕε(ps, N=div(2length(ps), 3))
     εs = ps[Nhalf+Nhalf2+1:end]
     return rs, ϕs, εs
 end
-function decompose_ϕε(ps, N=length(ps))#div(length(ps), 2))
-    # Nhalf = div(N + 1, 2)
+function decompose_ϕε(ps, N=length(ps))
     Nhalf2 = div(N, 2)
     ϕs = ps[1:Nhalf2]
     εs = ps[Nhalf2+1:end]
     return ϕs, εs
 end
-function decompose_allϕ_ε(ps, N)#div(length(ps), 2))
+function decompose_allϕ_ε(ps, N)
     ϕs = ps[1:N]
     εs = ps[N+1:end]
     return ϕs, εs
 end
+function decompose_allδϕ_allε(ps, N)
+    δϕs = ps[1:N-1]
+    εs = ps[N:end]
+    return δϕs, εs
+end
 splatter_rϕε(ps, N) = splatter_rϕε(decompose_rϕε(ps)..., N)
 function splatter_rϕε(rs, δϕs, ϵs, N)
-    # N = div(2 * (length(rs) + length(δϕs) + length(ϵs)), 3)
     return vcat(reflect(rs, N) .* exp.(1im .* diffreflect(δϕs, N)), ϵs)
 end
 
 hamfunc(::RΔ_Rδϕ_Rε, c, fixedparams) = hamfunc_rϕε(c, fixedparams)
 hamfunc(::Rδϕ_Rε, c, fixedparams) = hamfunc_ϕε(c, fixedparams)
+hamfunc(::Aδϕ_Aε, c, fixedparams) = hamfunc_allδϕ_allε(c, fixedparams)
 hamfunc(::Aϕ_Rε, c, fixedparams) = hamfunc_allϕ_ε(c, fixedparams)
 function hamfunc_rϕε(c, fixedparams)
     N = div(QuantumDots.nbr_of_fermions(c), 2)
@@ -101,6 +106,19 @@ function hamfunc_ϕε(c, fixedparams)
     ps = rand(N)
     cache = get_cache(c, Matrix(f2(ps)))
     # display(f2(ps))
+    return f2, f2!, cache
+end
+function hamfunc_allδϕ_allε(c, fixedparams)
+    N = div(QuantumDots.nbr_of_fermions(c), 2)
+    @variables Δ[1:N], εs[1:N]::Real
+    params = merge(fixedparams, (; Δ=collect(Δ[1:N]), ε=collect(εs[1:N])))
+    f, f! = LongerPoorMansMajoranas.build_whamiltonian(c; params...)
+    splatter(δϕs, ϵs, N) = vcat(fixedparams.Δ .* exp.(1im .* pushfirst!(cumsum(δϕs), zero(eltype(δϕs)))), ϵs)
+    splatter(ps, N) = splatter(decompose_allδϕ_allε(ps, N)..., N)
+    f2(ps) = f(splatter(ps, N))
+    f2!(out, ps) = f!(out, splatter(ps, N))
+    ps = rand(2N - 1)
+    cache = get_cache(c, Matrix(f2(ps)))
     return f2, f2!, cache
 end
 function hamfunc_allϕ_ε(c, fixedparams)
@@ -195,11 +213,15 @@ end
 get_initials(prob::OptProb) = get_initials(prob.optparams, div(length(prob.basis), 2))
 get_ranges(prob::OptProb) = get_ranges(prob.optparams, div(length(prob.basis), 2))
 initial_Aϕ(N) = zeros(N)
+initial_Aδϕ(N) = zeros(N - 1)
 initial_Rε(N) = zeros(div(N + 1, 2))
+initial_Aε(N) = zeros(N)
 initial_Rδϕ(N) = pi / 2 .* ones(div(N, 2))
 initial_RΔ(N) = ones(div(N + 1, 2))
 ranges_Aϕ(N) = [(0.0, 2.0pi) for i in 1:N]
+ranges_Aδϕ(N) = [(0.0, 2.0pi) for i in 1:N-1]
 ranges_Rε(N) = [100 .* (0, 1) for i in 1:div(N + 1, 2)]
+ranges_Aε(N) = [100 .* (0, 1) for i in 1:N]
 ranges_Rδϕ(N) = [(0.0, 1.0pi) for i in 1:div(N, 2)]
 ranges_RΔ(N) = [(0.01, 10.0) for i in 1:div(N + 1, 2)]
 
@@ -211,6 +233,9 @@ function get_initials(::RΔ_Rδϕ_Rε, N)
 end
 function get_initials(::Rδϕ_Rε, N)
     vcat(initial_Rδϕ(N), initial_Rε(N))
+end
+function get_initials(::Aδϕ_Aε, N)
+    vcat(initial_Aδϕ(N), initial_Aε(N))
 end
 function get_ranges(::Rδϕ_Rε, N)
     δϕranges = ranges_Rδϕ(N)
@@ -227,6 +252,11 @@ function get_ranges(::Aϕ_Rε, N)
     ϕranges = ranges_Aϕ(N)
     εranges = ranges_Rε(N)
     vcat(ϕranges, εranges)
+end
+function get_ranges(::Aδϕ_Aε, N)
+    δϕranges = ranges_Aδϕ(N)
+    εranges = ranges_Aε(N)
+    vcat(δϕranges, εranges)
 end
 default_exps() = collect(range(0.1, 3, length=5))
 function SciMLBase.solve(prob::OptProb, alg; MaxTime=5, minexcgap=1 / 4, exps=default_exps(), maxiters=1000, initials=get_initials(prob), kwargs...)

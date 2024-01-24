@@ -63,6 +63,7 @@ extrapolatedsols = [extrapolate_ss(bestsols[2][k].sol, merge(fixedparams, (; Ez)
 ##
 N = 3
 basis = FermionBdGBasis(1:N, (:↑, :↓))
+optim = Aδϕ_Aε()
 let
     Ezsols = Vector{Any}(undef, length(Ezs))
     for (k, Ez) in collect(enumerate(Ezs))
@@ -71,9 +72,10 @@ let
         fp = merge(fixedparams, (; Ez))
         f, f!, cache = hamfunc(optim, basis, fp)
         prob = OptProb(; hamfunc=x -> f!(cache, x), basis, optparams=optim)
-        initials = extrapolate_ss_initials(sol.sol, N)
-        println(initials)
-        algsols = [solve(prob, alg; initials, minexcgap=0.05, maxiters=1000000, MaxTime=10, exps=range(0.1, 5, 5)) for alg in best_algs()[alginds]]
+        #initials = extrapolate_ss_initials(sol.sol, N)
+        #println(initials)
+        # algsols = [solve(prob, alg; initials, minexcgap=0.05, maxiters=1000000, MaxTime=10, exps=range(0.1, 5, 5)) for alg in best_algs()[alginds]]
+        algsols = [solve(prob, alg; minexcgap=sol.optsol.excgap, maxiters=1000000, MaxTime=4, exps=range(0.1, 4, 5)) for alg in best_algs()[alginds]]
         Ezsols[k] = algsols
     end
     sols[3] = Ezsols
@@ -83,38 +85,53 @@ bestsols[3] = [sol[findmin(y -> MPU(y.optsol), sol)[2]] for sol in sols[3]]
 ##
 
 ##
-plot(map(x -> MPU(x.optsol), bestsols[2]))
-plot!(map(x -> MPU(x.optsol), bestsols[3]))
+plot(map(x -> MPU(x.optsol), bestsols[2]));
+plot!(map(x -> MPU(x.optsol), bestsols[3]));
 plot!(map(MPU, extrapolatedsols))
 ##
-plot(map(x -> LD(x.optsol), bestsols[2]))
-plot!(map(x -> LD(x.optsol), bestsols[3]))
+plot(map(x -> LD(x.optsol), bestsols[2]));
+plot!(map(x -> LD(x.optsol), bestsols[3]));
 plot!(map(LD, extrapolatedsols))
 ##
-plot(map(x -> x.optsol.excgap, bestsols[2]))
-plot!(map(x -> x.optsol.excgap, bestsols[3]))
+plot(map(x -> x.optsol.excgap, bestsols[2]));
+plot!(map(x -> x.optsol.excgap, bestsols[3]));
 plot!(map(x -> x.excgap, extrapolatedsols))
 ##
-plot(map(x -> x.optsol.gap, bestsols[2]))
-plot!(map(x -> x.optsol.gap, bestsols[3]))
+plot(map(x -> x.optsol.gap, bestsols[2]));
+plot!(map(x -> x.optsol.gap, bestsols[3]));
 plot!(map(x -> x.gap, extrapolatedsols))
 ##
 map(MPU, result3)
 ##
 εguess(Δ, Ez) = sqrt(Ez^2 - Δ^2)
 ##
-Δ0 = 10
-fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0, Δ=Δ0, U=4.0)
-basis = FermionBasis(1:3, (:↑, :↓); qn=QuantumDots.parity)
-# basis  = FermionBdGBasis(1:3, (:↑, :↓))
-fp = merge(fixedparams, (; Ez=3 * Δ0))
+Δ0 = 1
+fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0, Δ=Δ0, U=0.0)
+# basis = FermionBasis(1:3, (:↑, :↓); qn=QuantumDots.parity)
+basis = FermionBdGBasis(1:3, (:↑, :↓))
+fp = merge(fixedparams, (; Ez=1.5 * Δ0))
 optim = Rδϕ_Rε()
 f, f!, cache = hamfunc(optim, basis, fp)
 ##
 ε0 = εguess(fp.Δ, fp.Ez)
-ε1 = ε0 .+ range(-.1, .1, length=100) .* Δ0
-ε2 = ε0 .+ range(-.1, .1, length=100) .* Δ0
-δϕ = range(pi / 2, π, length=5)
+ε1 = ε0 .+ 1.5 .* range(-1, 1, length=100) .* Δ0
+ε2 = ε0 .+ 1.5 .* range(-1, 1, length=100) .* Δ0
+δϕ = range(π * 0.7, 0.9 * π, length=10)
+sols3d = [fullsolve(f!(cache, [δϕ, ε1, ε2]), basis) for (δϕ, ε1, ε2) in Iterators.product(δϕ, ε1, ε2)]
+
+## Inhomogeneous 2site
+Δ0 = 1
+fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0, Δ=Δ0, U=0.0)
+# basis = FermionBasis(1:3, (:↑, :↓); qn=QuantumDots.parity)
+basis = FermionBdGBasis(1:2, (:↑, :↓))
+fp = merge(fixedparams, (; Ez=3 * Δ0))
+optim = Aδϕ_Aε()
+f, f!, cache = hamfunc(optim, basis, fp)
+##
+ε0 = εguess(fp.Δ, fp.Ez)
+ε1 = ε0 .+ range(-0.1, 0.1, length=100) .* Δ0
+ε2 = ε0 .+ range(-0.1, 0.1, length=100) .* Δ0
+δϕ = range(pi * 0.59, 0.61 * pi, length=5)
 sols3d = [fullsolve(f!(cache, [δϕ, ε1, ε2]), basis) for (δϕ, ε1, ε2) in Iterators.product(δϕ, ε1, ε2)]
 ##
 function slice_plot(sols, ε1=ε1, ε2=ε2)
@@ -128,7 +145,7 @@ function slice_plot(sols, ε1=ε1, ε2=ε2)
     foreach((c, levels) -> contour!(p1, ε1, ε2, contours; c, levels), cs, ls)
 
     z = map(log10 ∘ LD, sols |> permutedims)
-    clims = (-2, 0.1)
+    clims = (-1, 0.1)
     p2 = heatmap(ε1, ε2, z; c=cgrad(:viridis, rev=true), clims, xlabel="ε1 and ε3", ylabel="ε2", title="log10(LD)", cbar=false)
     foreach((c, levels) -> contour!(p2, ε1, ε2, contours; c, levels), cs, ls)
 
