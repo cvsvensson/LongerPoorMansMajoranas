@@ -16,7 +16,7 @@ plot_data(K40Data)
 
 ##
 fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0, Δ=1, U=0.0, Ez=3)
-@time data = calculate_full_phase_data(5; save=true, res=(200, 200), fixedparams, MaxTime=5, optimize=true, exps=range(0.1, 3, 5), folder="high_res")
+@time data = calculate_full_phase_data(40; save=true, res=(100, 100), fixedparams, MaxTime=20, optimize=true, exps=range(0.1, 4, 5), folder="high_res")
 @time Kdata = calculate_kitaev_phase_data(2; save=false, res=(50, 50))
 ##
 for N in 2:60
@@ -35,16 +35,24 @@ F3Data = wload(datadir("phase_diagram", "high_res", "full_N=3_fixedparams=(t = 0
 load_full_data(N) = wload(datadir("phase_diagram", "high_res", "full_N=$(N)_fixedparams=(t = 0.5, θ = QuantumDots.DiffChainParameter{Float64}(2.746801533890032), V = 0, Δ = 1, U = 0.0, Ez = 3).jld2"))
 F4data = load_full_data(4)
 F5data = load_full_data(5)
+F40data = load_full_data(40)
 ##
 plot_LD(F4data)
-plot_LD(F5data)
+plot_MPU(F4data)
+plot_MPU(F5data)
 ##
-plot_LD(F40Data)
-plot_MPU(F40Data)
-plot_MP(F40Data)
-plot_gap(F40Data)
+plot_LD(F40data)
+plot_MPU(F40data)
+plot_MP(F40data)
+plot_gap(F40data)
 ##
-
+F40data_new_ss = deepcopy(F40data);
+##
+ss = find_sweet_spot(40; MaxTime = 30, exps=range(0.1, 4, 5))
+##
+F40data_new_ss["ss"] = ss
+plot_LD(F40data_new_ss)
+##
 using DataFrames
 synceddir(args...) = joinpath(ENV["Dropbox"], "data", "LongerPoorMans", args...)
 ## load all data
