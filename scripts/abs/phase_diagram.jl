@@ -29,15 +29,13 @@ plot_LD(Kdata)
 ## Full model
 
 ##
-F2Data = wload(datadir("phase_diagram", "full_N=2_fixedparams=(t = 0.5, θ = QuantumDots.DiffChainParameter{Float64}(2.746801533890032), V = 0, Δ = 1, U = 0.0, Ez = 3).jld2"))
-F40Data = wload(datadir("phase_diagram", "full_N=40_fixedparams=(t = 0.5, θ = QuantumDots.DiffChainParameter{Float64}(2.746801533890032), V = 0, Δ = 1, U = 0.0, Ez = 3).jld2"))
-F3Data = wload(datadir("phase_diagram", "high_res", "full_N=3_fixedparams=(t = 0.5, θ = QuantumDots.DiffChainParameter{Float64}(2.746801533890032), V = 0, Δ = 1, U = 0.0, Ez = 3).jld2"))
 load_full_data(N) = wload(datadir("phase_diagram", "high_res", "full_N=$(N)_fixedparams=(t = 0.5, θ = QuantumDots.DiffChainParameter{Float64}(2.746801533890032), V = 0, Δ = 1, U = 0.0, Ez = 3).jld2"))
+F3data = load_full_data(3)
 F4data = load_full_data(4)
 F5data = load_full_data(5)
 F40data = load_full_data(40)
 ##
-plot_LD(F4data)
+plot_LD(F3data)
 plot_MPU(F4data)
 plot_MPU(F5data)
 ##
@@ -74,3 +72,6 @@ good_Ns = [n for n in data_gbl[1].N if LD(data_gbl[1][n-1, :ss].optsol) < 1 / n]
 plot_MPU(data_gbl[1][9, :])
 plot_MPU(data_gbl[1][10, :])
 plot_MPU(data_gbl[1][18, :])
+
+##
+
