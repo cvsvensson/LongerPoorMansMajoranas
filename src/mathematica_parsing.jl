@@ -45,6 +45,7 @@ end
 math2Expr(num::Number) = num
 
 ##
-# zerothorder_JUexp = math2Expr(zerothorder_Wexp)
-# firstorder_hopping_JUexp = math2Expr(firstorder_hopping_Wexp)
-# firstorder_int_JUexp = math2Expr(firstorder_int_Wexp)
+zerothorder_JUexp = math2Expr(zerothorder_Wexp)
+firstorder_hopping_JUexp = math2Expr(firstorder_hopping_Wexp)
+secondorder_N3_nonint_JUexp = math2Expr(secondorder_N3_nonint_Wexp)
+firstorder_int_JUexp = math2Expr(firstorder_int_Wexp)

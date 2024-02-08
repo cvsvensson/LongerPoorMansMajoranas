@@ -3,7 +3,7 @@ function calculate_full_phase_data(N; save, res=(100, 100), fixedparams, MaxTime
     c = FermionBdGBasis(1:N, (:↑, :↓))
     f, f!, cache = hamfunc(Hδϕ_Hε(), c, fixedparams)
     ss = optimize ? find_sweet_spot((f, f!, cache), c, Hδϕ_Hε(); exps, MaxTime) : missing
-    εs = sqrt(fixedparams.Ez^2 - fixedparams.Δ^2) .+ 0.5 * range(-1, 1, length=res[1])
+    εs = sqrt(fixedparams.Ez^2 - fixedparams.Δ^2) .+ 0.7 * fixedparams.t * range(-1, 1, length=res[1])
     δϕs = range(0, pi, length=res[2])
     iter = Iterators.product(δϕs, εs) |> collect
     mapfunc(δϕε) = fullsolve(f!(cache, δϕε), c)

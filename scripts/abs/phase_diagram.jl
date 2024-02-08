@@ -46,7 +46,7 @@ plot_gap(F40data)
 ##
 F40data_new_ss = deepcopy(F40data);
 ##
-ss = find_sweet_spot(40; MaxTime = 30, exps=range(0.1, 4, 5))
+ss = find_sweet_spot(40; MaxTime=30, exps=range(0.1, 4, 5))
 ##
 F40data_new_ss["ss"] = ss
 plot_LD(F40data_new_ss)
@@ -74,4 +74,28 @@ plot_MPU(data_gbl[1][10, :])
 plot_MPU(data_gbl[1][18, :])
 
 ##
+a = FermionBdGBasis(1:3)
+function perturbative_solutions(a, M, fixedparams, labels, x, y)
+    xy = NamedTuple(Symbol.(labels) .=> (x, y .* ones(2)))
+    fp = filter(kv -> kv[1] ∉ (:U, :V), pairs(fixedparams)) |> NamedTuple
+    params = merge(fp, xy)
+    H = BdGMatrix(perturbative_hamiltonian(a, M; params...) |> Hermitian; check=false)
+    fullsolve(H, a)
+end
+##
+N = 3
+fixedparams = (; t=.1, θ=parameter(2atan(5), :diff), V=0, Δ=1, U=0.0, Ez=3)
+Kdata = calculate_kitaev_phase_data(N; save=false, res=(53, 50), folder=nothing)
+Fdata = calculate_full_phase_data(N; save=false, res=(53, 50), fixedparams, optimize=false, folder=nothing)
+εs = Fdata["x"]
+δϕs = Fdata["y"]
+##
+labels = Fdata["labels"]
+perturbative_data = [join_data(nothing, [perturbative_solutions(a, M, fixedparams, labels, x, y) for y in δϕs, x in εs], 3, (εs, δϕs, ("ε", "δϕ")), "perturbative", false, "") for M in 0:2];
+
+##
+plot([map(data -> plot_LD(data), perturbative_data)..., plot_LD(Fdata)]...)
+##
+plot([map(data -> plot_gap(data), perturbative_data)..., plot_gap(Fdata)]...)
+plot([map(data -> plot_MPU(data), perturbative_data)..., plot_MPU(Fdata)]...)
 
