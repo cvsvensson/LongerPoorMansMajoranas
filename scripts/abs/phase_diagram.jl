@@ -86,7 +86,7 @@ end
 N = 3
 fixedparams = (; t=0.001, θ=parameter(2atan(5), :diff), V=0, Δ=1, U=0.0, Ez=4)
 Kdata = calculate_kitaev_phase_data(N; save=false, res=(53, 50), folder=nothing)
-Fdata = calculate_full_phase_data(N; save=false, res=(53, 50), scale=25, fixedparams, optimize=false, folder=nothing)
+Fdata = calculate_full_phase_data(N; save=false, res=(53, 50), scale=1, fixedparams, optimize=false, folder=nothing)
 εs = Fdata["x"]
 δϕs = Fdata["y"]
 ##

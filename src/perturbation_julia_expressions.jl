@@ -61,8 +61,8 @@ function perturbative_hamiltonian(a, M; Δ, ε, δϕ, t, θ, Ez)
 end
 function _perturbative_hamiltonian(a, M; Δ, ε, δϕ, tso, t, Ez)
     perts = [zerothorder_perturbation(a; Δ, ε, Ez),
-        firstorder_perturbation(a; Δ, ε, δϕ, tso, t) / Ez^0,
-        secondorder_perturbation(a; Δ, ε, δϕ, tso, t, Ez) / Ez^0]
+        firstorder_perturbation(a; Δ, ε, δϕ, tso, t) / Ez^1,
+        secondorder_perturbation(a; Δ, ε, δϕ, tso, t, Ez) / Ez^2]
     if rand()<.001
         println(norm.(perts))
     end
