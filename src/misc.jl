@@ -52,7 +52,7 @@ function build_whamiltonian(basis::FermionBasis; parameters...)
     # println(symlist)
     f, f! = build_function(bd, symlist, expression=Val{false})
     f2(x...) = hermitianpart!(f(x...))
-    f2!(out, x...) = hermitianpart!(f!(out, x...))
+    f2!(out, x...) = (f!(out, x...); hermitianpart!(out))
     return f2, f2!
 end
 

@@ -99,3 +99,30 @@ plot([map(data -> plot_LD(data), perturbative_data)..., plot_LD(Fdata)]...)
 plot([map(data -> plot_gap(data), perturbative_data)..., plot_gap(Fdata)]...)
 plot([map(data -> plot_MPU(data), perturbative_data)..., plot_MPU(Fdata)]...)
 
+##
+gaps = [map(pdata -> map(x -> log(abs(x.gap)), pdata["data"][1200:1400]), [perturbative_data..., Fdata])...]
+
+plot(stack((vec.(gaps))), ylims=(-18, -7))
+
+##
+using Accessors
+
+N = 3
+ts = exp.(range(-10, 1, 10))
+fixedparams_t = [(; t, θ=parameter(2atan(5), :diff), V=0, Δ=1, U=0.0, Ez=4) for t in ts]
+Fdata_t = [calculate_full_phase_data(N; save=false, res=(5, 4), scale=1 / fixedparams.t, fixedparams, optimize=false, folder=nothing) for fixedparams in fixedparams_t]
+εs = Fdata_t[1]["x"]
+δϕs = Fdata_t[1]["y"]
+
+##
+labels = Fdata_t[1]["labels"]
+perturbative_data_t = [[join_data(nothing, [perturbative_solutions(a, M, fixedparams, labels, x, y) for y in δϕs, x in εs], 3, (εs, δϕs, ("ε", "δϕ")), "perturbative", false, "") for M in 0:2] for fixedparams in fixedparams_t];
+##
+data_t = [[perturbative_data..., Fdata] for (perturbative_data, Fdata) in zip(perturbative_data_t, Fdata_t)]
+##
+gaps = data_t .|> x -> x .|> x -> x["data"][:, 1] .|> x -> x.gap
+#display.(plot.(stack.(gaps)))
+##
+scalings = map(g -> map(gp -> log10(norm(gp .- g[4])), g[1:3]), (gaps)) |> stack |> permutedims
+plot(log10.(ts),scalings)
+diff(scalings; dims = 1) / diff(log10.(ts))[1] |> plot
