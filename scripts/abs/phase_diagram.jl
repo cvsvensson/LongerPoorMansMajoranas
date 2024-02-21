@@ -105,8 +105,6 @@ gaps = [map(pdata -> map(x -> log(abs(x.gap)), pdata["data"][1200:1400]), [pertu
 plot(stack((vec.(gaps))), ylims=(-18, -7))
 
 ##
-using Accessors
-
 N = 3
 ts = exp.(range(-10, 1, 10))
 fixedparams_t = [(; t, θ=parameter(2atan(5), :diff), V=0, Δ=1, U=0.0, Ez=4) for t in ts]
@@ -121,8 +119,8 @@ perturbative_data_t = [[join_data(nothing, [perturbative_solutions(a, M, fixedpa
 data_t = [[perturbative_data..., Fdata] for (perturbative_data, Fdata) in zip(perturbative_data_t, Fdata_t)]
 ##
 gaps = data_t .|> x -> x .|> x -> x["data"][:, 1] .|> x -> x.gap
-#display.(plot.(stack.(gaps)))
+# display.(plot.(stack.(gaps)))
 ##
 scalings = map(g -> map(gp -> log10(norm(gp .- g[4])), g[1:3]), (gaps)) |> stack |> permutedims
-plot(log10.(ts),scalings)
+plot(log10.(ts), scalings) |> display
 diff(scalings; dims = 1) / diff(log10.(ts))[1] |> plot
