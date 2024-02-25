@@ -1,4 +1,5 @@
 name = "LongerPoorMansMajoranas"
+uuid = "904e15f9-ac9b-44e2-af9d-be177c53a43e"
 
 [deps]
 Accessors = "7d9f7c33-5ae7-4f3b-8dc6-eff91059b697"

@@ -110,7 +110,10 @@ function hamfunc_Hδϕ_Hε(c, fixedparams)
     @variables Δ[1:N], ε::Real
     params = merge(fixedparams, (; Δ=collect(Δ[1:N]), ε))
     f, f! = LongerPoorMansMajoranas.build_whamiltonian(c; params...)
-    splatter(δϕϵs, N) = vcat(fixedparams.Δ .* exp.(1im .* (0:N-1) .* δϕϵs[1][1]), δϕϵs[2])
+    function splatter(δϕϵs, N)
+        ϕs = (0:N-1) .* (δϕϵs[1])
+        vcat(fixedparams.Δ .* exp.(1im .* ϕs), δϕϵs[2])
+    end
     f2(ps) = f(splatter(ps, N))
     f2!(out, ps) = f!(out, splatter(ps, N))
     ps = rand(2)

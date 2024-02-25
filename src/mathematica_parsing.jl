@@ -8,6 +8,10 @@ function math2Expr(expr::MathLink.WExpr)
         return Expr(:call, :*, map(math2Expr, expr.args)...)
     elseif expr.head.name == "Plus"
         return Expr(:call, :+, map(math2Expr, expr.args)...)
+    elseif expr.head.name == "Cos"
+        return Expr(:call, :cos, map(math2Expr, expr.args)...)
+    elseif expr.head.name == "Sin"
+        return Expr(:call, :sin, map(math2Expr, expr.args)...)
     elseif expr.head.name == "Power"
         return Expr(:call, :^, map(math2Expr, expr.args)...)
     elseif expr.head.name == "Rational"
@@ -45,7 +49,9 @@ end
 math2Expr(num::Number) = num
 
 ##
+include("perturbation_mathematica_expressions.jl")
 zerothorder_JUexp = math2Expr(zerothorder_Wexp)
 firstorder_hopping_JUexp = math2Expr(firstorder_hopping_Wexp)
+secondorder_N2_nonint_JUexp = math2Expr(secondorder_N2_nonint_Wexp)
 secondorder_N3_nonint_JUexp = math2Expr(secondorder_N3_nonint_Wexp)
 firstorder_int_JUexp = math2Expr(firstorder_int_Wexp)

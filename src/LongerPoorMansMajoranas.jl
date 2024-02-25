@@ -23,4 +23,5 @@ include("optimize.jl")
 include("transport.jl")
 include("charge_stability.jl")
 include("perturbation_julia_expressions.jl")
+include("hamiltonians.jl")
 end
