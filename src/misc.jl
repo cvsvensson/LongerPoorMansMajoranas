@@ -110,7 +110,7 @@ function fullsolve(_H, basis::FermionBasis; reduced=true, transport=missing, odd
     majcoeffs = QuantumDots.majorana_coefficients(oddvec, evenvecs[:, 1], basis)
     mps = half_majorana_polarizations(majcoeffs, basis)
     reduced = reduced ? reduced_similarity(basis, oddvec, evenvecs[:, 1]) : missing
-    conductance = conductance_matrix(transport, eig; basis)
+    conductance = conductance_matrix(transport, eig, basis)
     return (; gap=oddvals[oddvalindex] - first(evenvals), gapratio=gapratio(oddvals, evenvals), reduced, mps, majcoeffs, energies=(oddvals, evenvals), conductance, excgap=excgap(oddvals, evenvals))
 end
 using SparseArrays

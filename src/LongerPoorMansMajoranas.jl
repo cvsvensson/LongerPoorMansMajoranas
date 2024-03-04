@@ -10,6 +10,9 @@ using Optimization, OptimizationBBO, OptimizationOptimJL, OptimizationMetaheuris
 using RuntimeGeneratedFunctions
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
+import AbstractDifferentiation as AD
+using FiniteDifferences
+
 export c, LD, LDf, MP, MPU, excgap
 export hamiltonian, cell_labels, fullsolve, reduced_similarity
 export get_sweet_spot, reflect, diffreflect, OptProb, best_algs, best_alg_names
