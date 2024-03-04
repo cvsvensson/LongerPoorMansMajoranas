@@ -6,6 +6,8 @@ using Symbolics
 using Folds
 using Accessors
 using JLD2
+using DataFrames
+synceddir(args...) = joinpath(ENV["Dropbox"], "data", "LongerPoorMans", args...)
 includet(scriptsdir("abs", "phase_plots.jl"))
 includet(scriptsdir("abs", "phase_misc.jl"))
 ##
@@ -35,6 +37,8 @@ F4data = load_full_data(4)
 F5data = load_full_data(5)
 F40data = load_full_data(40)
 ##
+plot_f(F3data, LD)
+plot_f(F3data, MPU)
 plot_LD(F3data)
 plot_MPU(F4data)
 plot_MPU(F5data)
@@ -51,8 +55,7 @@ ss = find_sweet_spot(40; MaxTime=30, exps=range(0.1, 4, 5))
 F40data_new_ss["ss"] = ss
 plot_LD(F40data_new_ss)
 ##
-using DataFrames
-synceddir(args...) = joinpath(ENV["Dropbox"], "data", "LongerPoorMans", args...)
+
 ## load all data
 data = collect_results(synceddir("phase_diagram", "lengths"))
 ## extract sweet sweet_spots
@@ -74,18 +77,20 @@ plot_MPU(data_gbl[1][10, :])
 plot_MPU(data_gbl[1][18, :])
 
 ##
-a = FermionBdGBasis(1:3)
+# a = FermionBdGBasis(1:3)
+a = FermionBasis(1:3, qn=QuantumDots.parity)
 function perturbative_solutions(a, M, fixedparams, labels, x, y)
     xy = NamedTuple(Symbol.(labels) .=> (x, y .* ones(2)))
     fp = filter(kv -> kv[1] ∉ (:U, :V), pairs(fixedparams)) |> NamedTuple
     params = merge(fp, xy)
-    H = BdGMatrix(perturbative_hamiltonian(a, M; params...) |> Hermitian; check=false)
+    # H = BdGMatrix(perturbative_hamiltonian(a, M; params...) |> Hermitian; check=false)
+    H = perturbative_hamiltonian(a, M; params...)
     fullsolve(H, a)
 end
 ##
 N = 3
-# fixedparams = (; t=0.1, θ=parameter(2atan(5), :diff), V=0, Δ=1, U=0.0, Ez=4)
-fixedparams = (; t=0.879, θ=parameter(2atan(0.995962), :diff), V=0, Δ=1, U=0.0, Ez=1.3143)
+fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0, Δ=1, U=10.0, Ez=4)
+# fixedparams = (; t=0.879, θ=parameter(2atan(0.995962), :diff), V=0, Δ=1, U=0.0, Ez=1.3143)
 Kdata = calculate_kitaev_phase_data(N; save=false, res=(53, 50), folder=nothing)
 Fdata = calculate_full_phase_data(N; save=false, res=(53, 50), scale=1, fixedparams, optimize=false, folder=nothing)
 εs = Fdata["x"]
@@ -99,6 +104,12 @@ plot([map(data -> plot_LD(data), perturbative_data)..., plot_LD(Fdata)]...)
 ##
 plot([map(data -> plot_gap(data), perturbative_data)..., plot_gap(Fdata)]...)
 plot([map(data -> plot_MPU(data), perturbative_data)..., plot_MPU(Fdata)]...)
+
+##
+plot(map(data -> plot_f(data, MP), [perturbative_data..., Fdata])...)
+plot(map(data -> plot_f(data, MPU), [perturbative_data..., Fdata])...)
+plot(map(data -> plot_f(data, LDf), [perturbative_data..., Fdata])...)
+plot(map(data -> plot_f(data, x -> norm(x.reduced.cells2)), [perturbative_data..., Fdata])...)
 
 ##
 gaps = [map(pdata -> map(x -> log(abs(x.gap)), pdata["data"][1200:1400]), [perturbative_data..., Fdata])...]
@@ -124,4 +135,4 @@ gaps = data_t .|> x -> x .|> x -> x["data"][:, 1] .|> x -> x.gap
 ##
 scalings = map(g -> map(gp -> log10(norm(gp .- g[4])), g[1:3]), (gaps)) |> stack |> permutedims
 plot(log10.(ts), scalings) |> display
-diff(scalings; dims = 1) / diff(log10.(ts))[1] |> plot
+diff(scalings; dims=1) / diff(log10.(ts))[1] |> plot

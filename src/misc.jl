@@ -61,11 +61,13 @@ cell_labels(basis) = Base.Fix2(cell_labels, basis)
 function reduced_similarity(basis, oddvec::AbstractVector, evenvec)
     o = oddvec * oddvec'
     e = evenvec * evenvec'
-    fermions = map(label -> norm(partial_trace(o - e, (label,), basis), 2), keys(basis))
+    δρ = o - e
+    fermions = map(label -> norm(partial_trace(δρ, (label,), basis), 2), keys(basis))
     labels = cell_labels(basis)
-    cells = map(n -> norm(partial_trace(o - e, labels(n), basis), 2),
-        spatial_labels(basis))
-    return (; fermions, cells)
+
+    cells = map(n -> norm(partial_trace(δρ, labels(n), basis), 2), spatial_labels(basis))
+    cells2 = map((n1, n2) -> norm(partial_trace(δρ, sort(union(labels(n1), labels(n2)); by=last), basis), 2), spatial_labels(basis), Iterators.drop(spatial_labels(basis), 1))
+    return (; fermions, cells, cells2)
 end
 
 function reduced_similarity(qps::AbstractVector{<:QuantumDots.QuasiParticle})
@@ -79,8 +81,8 @@ function reduced_similarity(qps::AbstractVector{<:QuantumDots.QuasiParticle})
     cinds(n) = vcat(cell_positions(n), (cell_positions(n) .+ N))
     #cell_matrices = (; even=map(n -> ρeven[cinds(n), cinds(n)], 1:div(N, 2)), odd=map(n -> ρodd[cinds(n), cinds(n)], 1:div(N, 2)))
     fermions = QuantumDots.Dictionary(labels, [norm(ρeven[[n, n + N], [n, n + N]] - ρodd[[n, n + N], [n, n + N]], 2) for n in 1:length(labels)])
-    cells = QuantumDots.Dictionary(1:div(N, 2), [norm(ρeven[cinds(n), cinds(n)] - ρodd[cinds(n), cinds(n)], 2) for n in 1:div(N, 2)])
-    return (; fermions, cells)#, cell_matrices)
+    #cells = QuantumDots.Dictionary(1:div(N, 2), [norm(ρeven[cinds(n), cinds(n)] - ρodd[cinds(n), cinds(n)], 2) for n in 1:div(N, 2)])
+    return (; fermions, cells=missing)#, cell_matrices)
 end
 
 function half_majorana_polarizations(majcoeffs, basis)
@@ -95,7 +97,8 @@ function half_majorana_polarizations(majcoeffs, basis)
     right = QuantumDots.majorana_polarization(majcoeffs..., keysR)
     return (; left, right)
 end
-function fullsolve(H, basis::FermionBasis; reduced=true, transport=missing, oddvalindex=1)
+function fullsolve(_H, basis::FermionBasis; reduced=true, transport=missing, oddvalindex=1)
+    H = Hermitian(blockdiagonal(_H, basis))
     eig = QuantumDots.diagonalize(H)
     sectors = blocks(eig)
     fullsectors = blocks(eig; full=true)
@@ -111,7 +114,8 @@ function fullsolve(H, basis::FermionBasis; reduced=true, transport=missing, oddv
     return (; gap=oddvals[oddvalindex] - first(evenvals), gapratio=gapratio(oddvals, evenvals), reduced, mps, majcoeffs, energies=(oddvals, evenvals), conductance, excgap=excgap(oddvals, evenvals))
 end
 using SparseArrays
-function fullsolve(H::BdGMatrix, basis::FermionBdGBasis; reduced=true, transport=missing, cutoff=1e-10)
+function fullsolve(_H::AbstractMatrix, basis::FermionBdGBasis; reduced=true, transport=missing, cutoff=1e-10)
+    H = BdGMatrix(_H |> Hermitian; check=false)
     N = QuantumDots.nbr_of_fermions(basis)
     es, ops = try
         diagonalize(H)
