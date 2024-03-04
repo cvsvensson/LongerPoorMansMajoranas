@@ -91,22 +91,34 @@ end
 N = 3
 fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0, Δ=1, U=0.0, Ez=4)
 # fixedparams = (; t=0.879, θ=parameter(2atan(0.995962), :diff), V=0, Δ=1, U=0.0, Ez=1.3143)
+transport = Transport(QuantumDots.PauliSystem, (; T=1 / 20, μ=(0.0, 0.0)))
 Kdata = calculate_kitaev_phase_data(N; save=false, res=(53, 50), folder=nothing)
-Fdata = calculate_full_phase_data(N; save=false, res=(53, 50), scale=1, fixedparams, optimize=true, folder=nothing)
+Fdata = calculate_full_phase_data(N; save=false, res=(53, 50), scale=1, fixedparams, optimize=true, folder=nothing, transport)
 εs = Fdata["x"]
 δϕs = Fdata["y"]
-transport = Transport(QuantumDots.PauliSystem, (; T=1 / 20, μ=(0.0, 0.0)))
 ##
 labels = Fdata["labels"]
 perturbative_data = [join_data(nothing, [perturbative_solutions(a, M, fixedparams, labels, [x, x, x], y; transport) for y in δϕs, x in εs], 3, (εs, δϕs, ("ε", "δϕ")), "perturbative", false, "") for M in 0:2];
 
 pfdata = [perturbative_data..., Fdata]
 ##
+# plot(map(data -> plot_f(data, MPU), pfdata)[2:4]..., layout=(1, 3))
+using LaTeXStrings
+p1 = plot(plot_f(pfdata[2], MPU), colorbar=false, yshowaxis=true, title=L"H_1")
+p2 = plot(plot_f(pfdata[3], MPU), colorbar=false, yshowaxis=false, title=L"H_2", ylabel="")
+p3 = plot(plot_f(pfdata[4], MPU), colorbar=false, yshowaxis=false, title=L"H_{full}", ylabel="")
+
+h2 = scatter([0, 0], [0, 1], zcolor=[0, 3], clims=(0, 1),
+    xlims=(1, 1.1), xshowaxis=false, yshowaxis=false, label="", c=:viridis, colorbar_title="MPU", grid=false)
+l = @layout [grid(1, 3) a{0.01w}]
+p_all = plot(p1, p2, p3, h2, layout=l, size=(800, 300))
+##
 plot(map(data -> plot_f(data, sqrt ∘ MP), pfdata)...)
 plot(map(data -> plot_f(data, MPU), pfdata)...)
 plot(map(data -> plot_f(data, LDf), pfdata)...)
 plot(map(data -> plot_f(data, x -> norm(x.reduced.cells2)), pfdata)...)
 plot(map(data -> plot_f(data, x -> x.conductance[1, 1]; clims=(-0.1, 30)), pfdata)...)
+plot(map(data -> plot_f(data, x -> x.conductance[1, 2]; clims=(-5, 5)), pfdata)...)
 ##
 c = FermionBasis(1:N, (:↑, :↓); qn=QuantumDots.parity)
 T = 1 / 80
@@ -119,7 +131,7 @@ csp2 = pert_conductance_sweep(fixedparams, Fdata["ss"].sol .+ [0.2], εs, -Vs, T
 get_cs_heatmaps(data; kwargs...) = [heatmap(map(x -> x.conductance[1, 1], data.twol |> permutedims); xlabel="ε12", ylabel="Vl", kwargs...),
     heatmap(map(x -> x.conductance[2, 2], data.twor |> permutedims); xlabel="ε12", ylabel="Vl", kwargs...),
     heatmap(map(x -> x.conductance[1, 1], data.threel |> permutedims); xlabel="ε123", ylabel="Vl", kwargs...)]
-hs = stack(get_cs_heatmaps.([csp..., cs], colorbar = false, ticks = false, clims = (0,20)))
+hs = stack(get_cs_heatmaps.([csp..., cs], colorbar=false, ticks=false, clims=(0, 20)))
 plot(hs..., size=(800, 800))
 ##
 gaps = [map(pdata -> map(x -> log(abs(x.gap)), pdata["data"][1200:1400]), pfdata)...]

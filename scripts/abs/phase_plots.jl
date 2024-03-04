@@ -34,7 +34,7 @@ function plot_gap(data)
     plot_ss!(p, data["ss"], data["N"])
     p
 end
-function plot_f(data, f; colorbar_title=``, clims=missing)
+function plot_f(data, f; colorbar_title="", clims=missing)
     x = data["x"]
     xlabel = data["labels"][1]
     y = data["y"]
