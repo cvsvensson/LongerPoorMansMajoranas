@@ -3,6 +3,7 @@ struct Aϕ_Rε <: AbstractOptParams end
 struct RΔ_Rδϕ_Rε <: AbstractOptParams end
 struct Rδϕ_Rε <: AbstractOptParams end
 struct Hδϕ_Hε <: AbstractOptParams end
+struct Hδϕ_Aε <: AbstractOptParams end
 
 Base.@kwdef struct BBOptimizer{f,r,i,t,ec,B}
     hamfunc::f
@@ -77,6 +78,7 @@ hamfunc(::RΔ_Rδϕ_Rε, c, fixedparams) = hamfunc_rϕε(c, fixedparams)
 hamfunc(::Rδϕ_Rε, c, fixedparams) = hamfunc_ϕε(c, fixedparams)
 hamfunc(::Aϕ_Rε, c, fixedparams) = hamfunc_allϕ_ε(c, fixedparams)
 hamfunc(::Hδϕ_Hε, c, fixedparams) = hamfunc_Hδϕ_Hε(c, fixedparams)
+hamfunc(::Hδϕ_Aε, c, fixedparams) = hamfunc_Hδϕ_Aε(c, fixedparams)
 function hamfunc_rϕε(c, fixedparams)
     N = div(QuantumDots.nbr_of_fermions(c), 2)
     Nhalf = div(N + 1, 2)
@@ -117,6 +119,22 @@ function hamfunc_Hδϕ_Hε(c, fixedparams)
     f2(ps) = f(splatter(ps, N))
     f2!(out, ps) = f!(out, splatter(ps, N))
     ps = rand(2)
+    cache = get_cache(c, Matrix(f2(ps)))
+    # display(f2(ps))
+    return f2, f2!, cache
+end
+function hamfunc_Hδϕ_Aε(c, fixedparams)
+    N = div(QuantumDots.nbr_of_fermions(c), 2)
+    @variables Δ[1:N], ε[1:N]::Real
+    params = merge(fixedparams, (; Δ=collect(Δ[1:N]), ε=collect(ε[1:N])))
+    f, f! = LongerPoorMansMajoranas.build_whamiltonian(c; params...)
+    function splatter(δϕϵs, N)
+        ϕs = (0:N-1) .* (δϕϵs[1])
+        vcat(fixedparams.Δ .* exp.(1im .* ϕs), δϕϵs[2:end])
+    end
+    f2(ps) = f(splatter(ps, N))
+    f2!(out, ps) = f!(out, splatter(ps, N))
+    ps = rand(1 + N)
     cache = get_cache(c, Matrix(f2(ps)))
     # display(f2(ps))
     return f2, f2!, cache
@@ -215,11 +233,13 @@ get_ranges(prob::OptProb) = get_ranges(prob.optparams, div(length(prob.basis), 2
 initial_Aϕ(N) = zeros(N)
 initial_Rε(N) = zeros(div(N + 1, 2))
 initial_Hε(N) = [0.0]
+initial_Aε(N) = zeros(N)
 initial_Hδϕ(N) = [0.0]
 initial_Rδϕ(N) = 0.0 .* ones(div(N, 2))
 initial_RΔ(N) = ones(div(N + 1, 2))
 ranges_Aϕ(N) = [(0.0, 2.0pi) for i in 1:N]
 ranges_Rε(N) = [100 .* (0, 1) for i in 1:div(N + 1, 2)]
+ranges_Aε(N) = [100 .* (0, 1) for i in 1:N]
 ranges_Rδϕ(N) = [(0.0, 1.0pi) for i in 1:div(N, 2)]
 ranges_RΔ(N) = [(0.01, 10.0) for i in 1:div(N + 1, 2)]
 ranges_Hε(N) = [100 .* (0, 1)]
@@ -234,6 +254,9 @@ end
 function get_initials(::Hδϕ_Hε, N)
     vcat(initial_Hδϕ(N), initial_Hε(N))
 end
+function get_initials(::Hδϕ_Aε, N)
+    vcat(initial_Hδϕ(N), initial_Aε(N))
+end
 function get_initials(::Rδϕ_Rε, N)
     vcat(initial_Rδϕ(N), initial_Rε(N))
 end
@@ -245,6 +268,11 @@ end
 function get_ranges(::Hδϕ_Hε, N)
     δϕranges = ranges_Hδϕ(N)
     εranges = ranges_Hε(N)
+    vcat(δϕranges, εranges)
+end
+function get_ranges(::Hδϕ_Aε, N)
+    δϕranges = ranges_Hδϕ(N)
+    εranges = ranges_Aε(N)
     vcat(δϕranges, εranges)
 end
 function get_ranges(::RΔ_Rδϕ_Rε, N)

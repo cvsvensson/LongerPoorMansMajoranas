@@ -27,7 +27,7 @@ function math2Expr(expr::MathLink.WExpr)
         else
             return a
         end
-    elseif expr.head.name in ("μ", "ϕ")
+    elseif expr.head.name in ("μ", "ϕ", "ϵ")
         return Expr(:ref, Symbol(expr.head.name), map(math2Expr, expr.args)...)
         # elseif expr.head.name == "E"
         #     return Expr(:call, :exp, map(math2Expr, expr.args)...)
@@ -51,7 +51,7 @@ math2Expr(num::Number) = num
 ##
 include("perturbation_mathematica_expressions.jl")
 zerothorder_JUexp = math2Expr(zerothorder_Wexp)
-firstorder_hopping_JUexp = math2Expr(firstorder_hopping_Wexp)
-secondorder_N2_nonint_JUexp = math2Expr(secondorder_N2_nonint_Wexp)
-secondorder_N3_nonint_JUexp = math2Expr(secondorder_N3_nonint_Wexp)
-firstorder_int_JUexp = math2Expr(firstorder_int_Wexp)
+firstorder_hopping_JUexp = math2Expr(firstorder_hopping_Wexp) |> clipboard
+secondorder_N2_nonint_JUexp = math2Expr(secondorder_N2_nonint_Wexp) |> clipboard
+secondorder_N3_nonint_JUexp = math2Expr(secondorder_N3_nonint_Wexp) |> clipboard
+firstorder_int_JUexp = math2Expr(firstorder_int_Wexp) |> clipboard

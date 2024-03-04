@@ -1,16 +1,48 @@
 kitaev_ham(c, ε, Δ, t) = BdGMatrix(QuantumDots.kitaev_hamiltonian(c; μ=-ε, t, Δ); check=false)
-function calculate_full_phase_data(N; save, res=(100, 100), fixedparams, MaxTime=10, optimize=true, exps=range(0.1, 3, 5), folder, scale = 1)
-    c = FermionBasis(1:N, (:↑, :↓); qn = QuantumDots.parity)
+function calculate_full_phase_data(N; save, res=(100, 100), fixedparams, MaxTime=10, optimize=true, exps=range(0.1, 3, 5), folder, scale=1, transport=missing)
+    c = FermionBasis(1:N, (:↑, :↓); qn=QuantumDots.parity)
     # c = FermionBdGBasis(1:N, (:↑, :↓))
     f, f!, cache = hamfunc(Hδϕ_Hε(), c, fixedparams)
     ss = optimize ? find_sweet_spot((f, f!, cache), c, Hδϕ_Hε(); exps, MaxTime) : missing
     εs = sqrt(fixedparams.Ez^2 - fixedparams.Δ^2) .+ scale * 0.7 * fixedparams.t * range(-1, 1, length=res[1])
     δϕs = range(0, pi, length=res[2])
     iter = Iterators.product(δϕs, εs) |> collect
-    mapfunc(δϕε) = fullsolve(f!(cache, δϕε), c)
+    mapfunc(δϕε) = fullsolve(f!(cache, δϕε), c; transport)
     data = map(mapfunc, iter)
+
     join_data(ss, data, N, (εs, δϕs, ("ε", "δϕ")), "full", save, folder)
 end
+
+function conductance_sweep(c, fixedparams, ss, εs, Vs, T)
+    δϕ = ss[1]
+    ε0 = ss[2]
+    f, f!, cache = hamfunc(Hδϕ_Aε(), c, fixedparams)
+    tl(V) = Transport(QuantumDots.PauliSystem, (; T, μ=(V, 0.0)))
+    tr(V) = Transport(QuantumDots.PauliSystem, (; T, μ=(0.0, V)))
+    iter = Iterators.product(εs, Vs)
+    twol = map((εV) -> fullsolve(f!(cache, [δϕ, εV[1], εV[1], ε0]), c; transport=tl(εV[2])), iter)
+    twor = map((εV) -> fullsolve(f!(cache, [δϕ, εV[1], εV[1], ε0]), c; transport=tr(εV[2])), iter)
+    threel = map((εV) -> fullsolve(f!(cache, [δϕ, εV[1], εV[1], εV[1]]), c; transport=tl(εV[2])), iter)
+    return (; twol, twor, threel)
+end
+function pert_conductance_sweep(fixedparams, ss, εs, Vs, T)
+    a = FermionBasis(1:3, qn=QuantumDots.parity)
+    δϕ = ones(2) .* ss[1]
+    ε0 = ss[2]
+    tl(V) = Transport(QuantumDots.PauliSystem, (; T, μ=(V, 0.0)))
+    tr(V) = Transport(QuantumDots.PauliSystem, (; T, μ=(0.0, V)))
+    iter = Iterators.product(εs, Vs)
+    fp = filter(kv -> kv[1] ∉ (:U, :V), pairs(fixedparams)) |> NamedTuple
+
+    function get_nt(M)
+        twol = map((εV) -> fullsolve(perturbative_hamiltonian(a, M; fp..., δϕ, ε=[εV[1], εV[1], ε0]), a; transport=tl(εV[2])), iter)
+        twor = map((εV) -> fullsolve(perturbative_hamiltonian(a, M; fp..., δϕ, ε=[εV[1], εV[1], ε0]), a; transport=tr(εV[2])), iter)
+        threel = map((εV) -> fullsolve(perturbative_hamiltonian(a, M; fp..., δϕ, ε=[εV[1], εV[1], εV[2]]), a; transport=tl(εV[2])), iter)
+        return (; twol, twor, threel)
+    end
+    map(get_nt, 1:2)
+end
+
 function find_sweet_spot(N; MaxTime, exps=range(0.1, 3, 5))
     c = FermionBdGBasis(1:N, (:↑, :↓))
     f, f!, cache = hamfunc(Hδϕ_Hε(), c, fixedparams)

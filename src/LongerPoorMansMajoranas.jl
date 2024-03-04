@@ -18,7 +18,7 @@ export hamiltonian, cell_labels, fullsolve, reduced_similarity
 export get_sweet_spot, reflect, diffreflect, OptProb, best_algs, best_alg_names
 export Transport, solve
 export charge_stability_scan
-export Aϕ_Rε, RΔ_Rδϕ_Rε, Rδϕ_Rε, Hδϕ_Hε, hamfunc
+export Aϕ_Rε, RΔ_Rδϕ_Rε, Rδϕ_Rε, Hδϕ_Hε, Hδϕ_Aε, hamfunc
 export perturbative_hamiltonian
 
 include("misc.jl")

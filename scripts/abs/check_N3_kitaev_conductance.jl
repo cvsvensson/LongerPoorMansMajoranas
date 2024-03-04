@@ -25,17 +25,17 @@ end
 
 ##
 μ1s = range(-3, 3, 22)
-μ2s = μ1s
-μ3 = 0
-Vls = range(-3, 3, 42)
+μ2s = μ1s .- 1.5
+μ3 = 0.0
+Vls = range(-1, 1, 32)
 ϕs = let n = 5
     range(0, 2π, n + 1)[1:n]
 end
 fixedparams = (; t=[1.0, 2.0, 0], V=0)
 T = 1 / 20
 # datal = [get_sol((μ1, μ1, μ1), (@insert fixedparams.Δ = fixedparams.t .* [1, exp(1im * ϕ), 0]), Transport(QuantumDots.PauliSystem, (; T, μ=(Vl, 0.0)))) for μ1 in μ1s, Vl in Vls, ϕ in ϕs]
-datal = [get_sol((μ1, μ1, μ3), (@insert fixedparams.Δ = fixedparams.t .* [1, exp(1im * ϕ), 0]), Transport(QuantumDots.PauliSystem, (; T, μ=(Vl, 0.0)))) for μ1 in μ1s, Vl in Vls, ϕ in ϕs]
-datal3 = [get_sol((μ1, μ1, μ1), (@insert fixedparams.Δ = fixedparams.t .* [1, exp(1im * ϕ), 0]), Transport(QuantumDots.PauliSystem, (; T, μ=(Vl, 0)))) for μ1 in μ1s, Vl in Vls, ϕ in ϕs]
+datal = [get_sol((μ1, μ1 - 1.5, μ3), (@insert fixedparams.Δ = fixedparams.t .* [1, exp(1im * ϕ), 0]), Transport(QuantumDots.PauliSystem, (; T, μ=(Vl, 0.0)))) for μ1 in μ1s, Vl in Vls, ϕ in ϕs]
+datal3 = [get_sol((μ1, μ1 - 1.5, μ1 + μ3), (@insert fixedparams.Δ = fixedparams.t .* [1, exp(1im * ϕ), 0]), Transport(QuantumDots.PauliSystem, (; T, μ=(Vl, 0)))) for μ1 in μ1s, Vl in Vls, ϕ in ϕs]
 #datar = [get_sol((μ1, μ1, μ3), (@insert fixedparams.Δ = fixedparams.t .* [1, exp(1im * ϕ), 0]), Transport(QuantumDots.PauliSystem, (; T, μ=(0.0, Vl)))) for μ1 in μ1s, Vl in Vls, ϕ in ϕs]
 # datar = [get_sol((μ12..., μ3), fixedparams, Transport(QuantumDots.PauliSystem, (; T=1 / 10, μ=(0.0, Vl)))) for μ12 in zip(μ1s, μ2s), Vl in Vls]
 ##

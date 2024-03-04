@@ -6,7 +6,7 @@ struct Transport{T,NT}
 end
 
 
-QuantumDots.conductance_matrix(::Missing, eig; kwargs...) = missing
+QuantumDots.conductance_matrix(::Missing, eig, basis; kwargs...) = missing
 function QuantumDots.conductance_matrix(t::Transport, eig, basis)
     leads = get_leads(basis, t.parameters...)
     # system = #t.type(QuantumDots.diagonalize(QuantumDots.OpenSystem(eig, leads)))

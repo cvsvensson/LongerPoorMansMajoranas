@@ -79,40 +79,50 @@ plot_MPU(data_gbl[1][18, :])
 ##
 # a = FermionBdGBasis(1:3)
 a = FermionBasis(1:3, qn=QuantumDots.parity)
-function perturbative_solutions(a, M, fixedparams, labels, x, y)
+function perturbative_solutions(a, M, fixedparams, labels, x, y; transport=missing)
     xy = NamedTuple(Symbol.(labels) .=> (x, y .* ones(2)))
     fp = filter(kv -> kv[1] ∉ (:U, :V), pairs(fixedparams)) |> NamedTuple
     params = merge(fp, xy)
     # H = BdGMatrix(perturbative_hamiltonian(a, M; params...) |> Hermitian; check=false)
     H = perturbative_hamiltonian(a, M; params...)
-    fullsolve(H, a)
+    fullsolve(H, a; transport)
 end
 ##
 N = 3
-fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0, Δ=1, U=10.0, Ez=4)
+fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0, Δ=1, U=0.0, Ez=4)
 # fixedparams = (; t=0.879, θ=parameter(2atan(0.995962), :diff), V=0, Δ=1, U=0.0, Ez=1.3143)
 Kdata = calculate_kitaev_phase_data(N; save=false, res=(53, 50), folder=nothing)
-Fdata = calculate_full_phase_data(N; save=false, res=(53, 50), scale=1, fixedparams, optimize=false, folder=nothing)
+Fdata = calculate_full_phase_data(N; save=false, res=(53, 50), scale=1, fixedparams, optimize=true, folder=nothing)
 εs = Fdata["x"]
 δϕs = Fdata["y"]
+transport = Transport(QuantumDots.PauliSystem, (; T=1 / 20, μ=(0.0, 0.0)))
 ##
 labels = Fdata["labels"]
-perturbative_data = [join_data(nothing, [perturbative_solutions(a, M, fixedparams, labels, x, y) for y in δϕs, x in εs], 3, (εs, δϕs, ("ε", "δϕ")), "perturbative", false, "") for M in 0:2];
+perturbative_data = [join_data(nothing, [perturbative_solutions(a, M, fixedparams, labels, [x, x, x], y; transport) for y in δϕs, x in εs], 3, (εs, δϕs, ("ε", "δϕ")), "perturbative", false, "") for M in 0:2];
 
+pfdata = [perturbative_data..., Fdata]
 ##
-plot([map(data -> plot_LD(data), perturbative_data)..., plot_LD(Fdata)]...)
+plot(map(data -> plot_f(data, sqrt ∘ MP), pfdata)...)
+plot(map(data -> plot_f(data, MPU), pfdata)...)
+plot(map(data -> plot_f(data, LDf), pfdata)...)
+plot(map(data -> plot_f(data, x -> norm(x.reduced.cells2)), pfdata)...)
+plot(map(data -> plot_f(data, x -> x.conductance[1, 1]; clims=(-0.1, 30)), pfdata)...)
 ##
-plot([map(data -> plot_gap(data), perturbative_data)..., plot_gap(Fdata)]...)
-plot([map(data -> plot_MPU(data), perturbative_data)..., plot_MPU(Fdata)]...)
-
+c = FermionBasis(1:N, (:↑, :↓); qn=QuantumDots.parity)
+T = 1 / 80
+Vs = range(-0.5, 0.5, 32)
+cs = conductance_sweep(c, fixedparams, Fdata["ss"].sol, εs, Vs, T)
+csp = pert_conductance_sweep(fixedparams, Fdata["ss"].sol, εs, -Vs, T)
+cs2 = conductance_sweep(c, fixedparams, Fdata["ss"].sol .+ [0.2], εs, Vs, T)
+csp2 = pert_conductance_sweep(fixedparams, Fdata["ss"].sol .+ [0.2], εs, -Vs, T)
 ##
-plot(map(data -> plot_f(data, MP), [perturbative_data..., Fdata])...)
-plot(map(data -> plot_f(data, MPU), [perturbative_data..., Fdata])...)
-plot(map(data -> plot_f(data, LDf), [perturbative_data..., Fdata])...)
-plot(map(data -> plot_f(data, x -> norm(x.reduced.cells2)), [perturbative_data..., Fdata])...)
-
+get_cs_heatmaps(data; kwargs...) = [heatmap(map(x -> x.conductance[1, 1], data.twol |> permutedims); xlabel="ε12", ylabel="Vl", kwargs...),
+    heatmap(map(x -> x.conductance[2, 2], data.twor |> permutedims); xlabel="ε12", ylabel="Vl", kwargs...),
+    heatmap(map(x -> x.conductance[1, 1], data.threel |> permutedims); xlabel="ε123", ylabel="Vl", kwargs...)]
+hs = stack(get_cs_heatmaps.([csp..., cs], colorbar = false, ticks = false, clims = (0,20)))
+plot(hs..., size=(800, 800))
 ##
-gaps = [map(pdata -> map(x -> log(abs(x.gap)), pdata["data"][1200:1400]), [perturbative_data..., Fdata])...]
+gaps = [map(pdata -> map(x -> log(abs(x.gap)), pdata["data"][1200:1400]), pfdata)...]
 
 plot(stack((vec.(gaps))), ylims=(-18, -7))
 
