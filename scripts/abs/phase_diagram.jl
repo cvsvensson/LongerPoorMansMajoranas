@@ -7,6 +7,7 @@ using Folds
 using Accessors
 using JLD2
 using DataFrames
+using LaTeXStrings
 synceddir(args...) = joinpath(ENV["Dropbox"], "data", "LongerPoorMans", args...)
 includet(scriptsdir("abs", "phase_plots.jl"))
 includet(scriptsdir("abs", "phase_misc.jl"))
@@ -29,13 +30,55 @@ end
 plot_LD(data)
 plot_LD(Kdata)
 ## Full model
-
+calculate_full_phase_data(40; save=true, res=(250, 250), fixedparams, MaxTime=2, optimize=true, exps=range(0.1, 3, 5), scale=0.75, folder="high_res")
 ##
 load_full_data(N) = wload(datadir("phase_diagram", "high_res", "full_N=$(N)_fixedparams=(t = 0.5, θ = QuantumDots.DiffChainParameter{Float64}(2.746801533890032), V = 0, Δ = 1, U = 0.0, Ez = 3).jld2"))
+F2data = load_full_data(2)
 F3data = load_full_data(3)
 F4data = load_full_data(4)
 F5data = load_full_data(5)
 F40data = load_full_data(40)
+F20data = load_full_data(20)
+##
+a = FermionBasis(1:3, qn=QuantumDots.parity)
+function perturbative_solutions(a, M, fixedparams, labels, x, y; transport=missing)
+    xy = NamedTuple(Symbol.(labels) .=> (x, y .* ones(2)))
+    fp = filter(kv -> kv[1] ∉ (:U, :V), pairs(fixedparams)) |> NamedTuple
+    params = merge(fp, xy)
+    H = perturbative_hamiltonian(a, M; params...)
+    fullsolve(H, a; transport)
+end
+εs = F3data["x"]
+δϕs = F3data["y"]
+labels = F3data["labels"]
+perturbative_data = [join_data(nothing, [perturbative_solutions(a, M, fixedparams, labels, [x, x, x], y) for y in δϕs, x in εs], 3, (εs, δϕs, ("ε", "δϕ")), "perturbative", false, "") for M in 0:2];
+pfdata = [perturbative_data..., F3data]
+##
+plot_f(F2data, MP; c=cgrad(:viridis, rev=true, scale=x -> exp(5x)), leg=:bottomleft, plot_ss=false, fontfamily="Computer Modern", title="2", colorbar_titlefontrotation=-90, colorbar_title="1-MP")
+plot_f(F4data, MP; c=cgrad(:viridis, rev=true, scale=x -> exp(4x)), plot_ss=false, fontfamily="Computer Modern", title="4", colorbar_titlefontrotation=-90, leg=:bottomleft, colorbar_title="1-MP")
+plot_f(F5data, MP; c=cgrad(:viridis, rev=true, scale=x -> exp(4x)), plot_ss=false, fontfamily="Computer Modern", title="5", colorbar_titlefontrotation=-90, leg=:bottomleft, colorbar_title="1-MP")
+plot_f(F20data, MP; c=cgrad(:viridis, rev=true, scale=x -> exp(4x)), plot_ss=false, fontfamily="Computer Modern", title="20", colorbar_titlefontrotation=-90, leg=:bottomleft, colorbar_title="1-MP")
+plot_f(F40data, MP; c=cgrad(:viridis, rev=true, scale=x -> exp(6x)), plot_ss=false, fontfamily="Computer Modern", title="40", colorbar_titlefontrotation=-90, leg=:bottomleft, colorbar_title="1-MP")
+
+plot_f(F3data, MP; c=cgrad(:viridis, rev=true, scale=x -> exp(4x)), plot_ss=false, fontfamily="Computer Modern", title="Three sites", colorbar_titlefontrotation=-90, colorbar_title="1-MP")
+##
+let
+    level_magnitude = 0.01
+    c = cgrad(:viridis, rev=true, scale=x -> exp(4abs(x)))
+    kwargs = (; c, colorbar=false, level_magnitude, fontfamily="Computer Modern",
+        left_margin=-0Plots.mm, right_margin=-2Plots.mm, top_margin=2Plots.mm, bottom_margin=1Plots.mm)
+    p1 = plot_f(pfdata[2], MP; legend_position=:bottomleft, plot_ss=false, title=L"H_1^\mathrm{eff}", kwargs...)
+    p2 = plot_f(pfdata[3], MP; legend=false, plot_ss=false, ylabel="", yshowaxis=false, title=L"H_2^\mathrm{eff}", kwargs...)
+    p3 = plot_f(pfdata[4], MP; legend=false, plot_ss=false, ylabel="", yshowaxis=false, title=L"H", kwargs...)
+    h2 = scatter([0], [0]; zcolor=[0], clims=(0.0, 1.0),
+        xlims=(1, 1.1), xshowaxis=false, yshowaxis=false, label="", c, colorbar_title="1-MP", grid=false)
+    l = @layout [grid(1, 3) a{0.001w}]
+    p_all = plot(p1, p2, p3, h2, layout=l, thickness_scaling=1.5, size=(900, 300))
+end
+
+##
+plot_f(pfdata[4], MP; fontfamily="Computer Modern", leg=:bottomleft, plot_ss=false, colorbar_titlefontrotation=-90, size=0.6 .* (800, 600), colorbar_title="1-MP", c=cgrad(:viridis, rev=true, scale=x -> exp(4abs(x))))
+
 ##
 plot_f(F3data, LD)
 plot_f(F3data, MPU)
@@ -62,10 +105,11 @@ data = collect_results(synceddir("phase_diagram", "lengths"))
 data_gbl = groupby(data, :labels)
 foreach(data -> sort!(data, :N), data_gbl)
 ## plot
-plot(2:16, map(x -> LD(x.optsol), data_gbl[1].ss)[1:15]; xlabel="N", label="LD (stability under local perturbations)", xticks=2:2:16, markers=true, frame=:box, legend=:topright, size=0.9 .* (600, 400))
+p = plot(; xlabel="N", xticks=2:2:16, markers=true, frame=:box, legend=:topright, size=0.9 .* (600, 400), thickness_scaling=1.3, yscale=:log10, yticks=10.0 .^ (-6:2:0), fontfamily="Computer Modern");
+plot!(2:16, map(x -> MP(x.optsol), data_gbl[1].ss)[1:15]; legend=false, markers=true, ylabel="1-MP")
+plot(2:16, map(x -> LD(x.optsol), data_gbl[1].ss)[1:15]; label="LD (stability under local perturbations)", markers=true)
 #map(x -> LD(x.optsol)^2, data_gbl[1].ss)[1:15] .|> log |> plot;
 plot!(2:16, map(x -> MPU(x.optsol), data_gbl[1].ss)[1:15]; label="1 - MPU (weight of majoranas on the outermost dot)", markers=true)
-plot!(2:16, map(x -> MP(x.optsol), data_gbl[1].ss)[1:15]; label="1 - MP (normalized weight of majoranas on the outermost dot)", markers=true)
 ##
 map(x -> x.optsol.excgap, data_gbl[1].ss)[1:15] |> plot
 map(x -> x.optsol.gap, data_gbl[1].ss)[1:15] |> plot
@@ -89,7 +133,7 @@ function perturbative_solutions(a, M, fixedparams, labels, x, y; transport=missi
 end
 ##
 N = 3
-fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0, Δ=1, U=0.0, Ez=4)
+# fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0, Δ=1, U=0.0, Ez=3)
 # fixedparams = (; t=0.879, θ=parameter(2atan(0.995962), :diff), V=0, Δ=1, U=0.0, Ez=1.3143)
 transport = Transport(QuantumDots.PauliSystem, (; T=1 / 20, μ=(0.0, 0.0)))
 Kdata = calculate_kitaev_phase_data(N; save=false, res=(53, 50), folder=nothing)
@@ -121,17 +165,17 @@ plot(map(data -> plot_f(data, x -> x.conductance[1, 1]; clims=(-0.1, 30)), pfdat
 plot(map(data -> plot_f(data, x -> x.conductance[1, 2]; clims=(-5, 5)), pfdata)...)
 ##
 c = FermionBasis(1:N, (:↑, :↓); qn=QuantumDots.parity)
-T = 1 / 80
-Vs = range(-0.5, 0.5, 32)
-cs = conductance_sweep(c, fixedparams, Fdata["ss"].sol, εs, Vs, T)
-csp = pert_conductance_sweep(fixedparams, Fdata["ss"].sol, εs, -Vs, T)
-cs2 = conductance_sweep(c, fixedparams, Fdata["ss"].sol .+ [0.2], εs, Vs, T)
-csp2 = pert_conductance_sweep(fixedparams, Fdata["ss"].sol .+ [0.2], εs, -Vs, T)
+T = 1 / 100
+Vs = range(-0.3, 0.3, 42)
+cs = conductance_sweep(c, fixedparams, F3data["ss"].sol, εs[1:6:end], Vs, T)
+csp = pert_conductance_sweep(fixedparams, F3data["ss"].sol, εs[1:6:end], -Vs, T)
+cs2 = conductance_sweep(c, fixedparams, F3data["ss"].sol .+ [-0.5, -0.15], εs[1:6:end], Vs, T)
+csp2 = pert_conductance_sweep(fixedparams, F3data["ss"].sol .+ [-0.5, -0.15], εs[1:6:end], -Vs, T)
 ##
 get_cs_heatmaps(data; kwargs...) = [heatmap(map(x -> x.conductance[1, 1], data.twol |> permutedims); xlabel="ε12", ylabel="Vl", kwargs...),
-    heatmap(map(x -> x.conductance[2, 2], data.twor |> permutedims); xlabel="ε12", ylabel="Vl", kwargs...),
+    heatmap(map(x -> x.conductance[2, 2], data.twor |> permutedims); xlabel="ε12", ylabel="Vr", kwargs...),
     heatmap(map(x -> x.conductance[1, 1], data.threel |> permutedims); xlabel="ε123", ylabel="Vl", kwargs...)]
-hs = stack(get_cs_heatmaps.([csp..., cs], colorbar=false, ticks=false, clims=(0, 20)))
+hs = stack(get_cs_heatmaps.([csp..., cs], c=cgrad(:amp, scale=:exp), colorbar=false, ticks=false, clims=(0, 40)))
 plot(hs..., size=(800, 800))
 ##
 gaps = [map(pdata -> map(x -> log(abs(x.gap)), pdata["data"][1200:1400]), pfdata)...]

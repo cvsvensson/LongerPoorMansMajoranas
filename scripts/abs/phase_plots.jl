@@ -34,25 +34,49 @@ function plot_gap(data)
     plot_ss!(p, data["ss"], data["N"])
     p
 end
-function plot_f(data, f; colorbar_title="", clims=missing)
+
+#https://discourse.julialang.org/t/tick-size-in-plots-jl/74793/3
+function ticks_length!(; tl=0.02)
+    p = Plots.current()
+    xticks, yticks = Plots.xticks(p)[1][1], Plots.yticks(p)[1][1]
+    xl, yl = Plots.xlims(p), Plots.ylims(p)
+    x1, y1 = zero(yticks) .+ xl[1], zero(xticks) .+ yl[1]
+    sz = p.attr[:size]
+    r = sz[1] / sz[2]
+    dx, dy = tl * (xl[2] - xl[1]), tl * r * (yl[2] - yl[1])
+    plot!([xticks xticks]', [y1 y1 .+ dy]', c=:black, labels=false)
+    plot!([x1 x1 .+ dx]', [yticks yticks]', c=:black, labels=false, xlims=xl, ylims=yl)
+    return Plots.current()
+end
+
+
+function plot_f(data, f; clims=missing, frame=:box, thickness_scaling=1.3, plot_ss=true, level_magnitude=0.01, kwargs...)
     x = data["x"]
     xlabel = data["labels"][1]
     y = data["y"]
     ylabel = data["labels"][2]
-    levels = 0.01 .* [-1, 1, 0]
+    levels = level_magnitude .* [-1, 0, 1]
+    titles = ["0.01Δ", "0"]
+    colors = [:orange, :red, :orange]
     z = map(f, data["data"])
 
-    xlims = (first(x), last(x))
-    ylims = (first(y), last(y))
+    xdiff = abs(first(x) - last(x)) / 2
+    ydiff = abs(first(y) - last(y)) / 2
+    xlims = (first(x), last(x)) #.+ xdiff / 40 .* (-1, 1)
+    ylims = (first(y), last(y)) #.+ ydiff / 40 .* (-1, 1)
 
-    clims = ismissing(clims) ? (minimum(levels) - 1e-12, 1) : clims
+    clims = ismissing(clims) ? (0minimum(levels) - 1e-12, 1) : clims
 
-    p = heatmap(x, y, z; c=cgrad(:viridis, rev=true), clims, xlabel, ylabel, colorbar_title, frame=:box, colorbar_titlefontrotation=-90,
-        xlims, ylims, thickness_scaling=1.3)
-    colors = [:white, :white, :red]
+    p = heatmap(x, y, z; c=cgrad(:viridis, rev=true), clims, xlabel, ylabel, frame, xlims, ylims, thickness_scaling, kwargs...)
+    ticks_length!(tl=0.015)
     zgap = map(x -> x.gap, data["data"])
-    foreach((l, c) -> contour!(p, x, y, zgap; levels=[l], c), levels, colors)
-    plot_ss!(p, data["ss"], data["N"])
+    foreach((l, c) -> contour!(p, x, y, abs.(zgap); levels=[l], c), levels[[1, 3]], colors[[1, 3]])
+    contour!(p, x, y, zgap; levels=[0.0], c=colors[2], clims)
+    foreach((l, c) -> plot!(p, last(x) .* [1, 1] .+ 0.1, [0, 0]; leg_title="|δE|", c, label=l), titles, colors)
+    #contour!(p, x, y, zgap; levels=range(-1, 1, 50))
+    if plot_ss
+        plot_ss!(p, data["ss"], data["N"])
+    end
     p
 end
 function plot_MPU(data)

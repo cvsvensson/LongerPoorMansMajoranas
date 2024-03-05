@@ -88,9 +88,6 @@ function _perturbative_hamiltonian_terms(a; Δ, ε, δϕ, tso, t, Ez)
 end
 function _perturbative_hamiltonian(a, M; Δ, ε, δϕ, tso, t, Ez)
     perts = _perturbative_hamiltonian_terms(a; Δ, ε, δϕ, tso, t, Ez)
-    if rand() < 0.001
-        println(norm.(perts))
-    end
     return sum(perts[1:M+1])
 end
 perturbative_hamiltonian(a, 2; Δ=1, ε=[1, 2, 3], δϕ=1:2, t=1 / 100000, θ=2.7, Ez=3) - zerothorder_perturbation(a; Δ=1, ε=[1, 2, 3], Ez=3) |> norm
