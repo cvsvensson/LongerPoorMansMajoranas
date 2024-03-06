@@ -1,7 +1,7 @@
 kitaev_ham(c, ε, Δ, t) = BdGMatrix(QuantumDots.kitaev_hamiltonian(c; μ=-ε, t, Δ); check=false)
-function calculate_full_phase_data(N; save, res=(100, 100), fixedparams, MaxTime=10, optimize=true, exps=range(0.1, 3, 5), folder, scale=1, transport=missing)
+function calculate_full_phase_data(N; bdg=ismissing(transport), save, res=(100, 100), fixedparams, MaxTime=10, optimize=true, exps=range(0.1, 3, 5), folder, scale=1, transport=missing)
     # c = FermionBasis(1:N, (:↑, :↓); qn=QuantumDots.parity)
-    c = FermionBdGBasis(1:N, (:↑, :↓))
+    c = bdg ? FermionBdGBasis(1:N, (:↑, :↓)) : FermionBasis(1:N, (:↑, :↓); qn=QuantumDots.parity)
     f, f!, cache = hamfunc(Hδϕ_Hε(), c, fixedparams)
     ss = optimize ? find_sweet_spot((f, f!, cache), c, Hδϕ_Hε(); exps, MaxTime) : missing
     εs = sqrt(fixedparams.Ez^2 - fixedparams.Δ^2) .+ scale * 0.7 * fixedparams.t * range(-1, 1, length=res[1])
@@ -9,13 +9,26 @@ function calculate_full_phase_data(N; save, res=(100, 100), fixedparams, MaxTime
     iter = Iterators.product(δϕs, εs) |> collect
     mapfunc(δϕε) = fullsolve(f!(cache, δϕε), c; transport)
     data = map(mapfunc, iter)
-
     join_data(ss, data, N, (εs, δϕs, ("ε", "δϕ")), "full", save, folder)
 end
 
-function conductance_sweep(c, fixedparams, ss, εs, Vs, T)
+function calculate_refl_phase_data(N, εmid; save, res=(100, 100), fixedparams, MaxTime=10, optimize=true, exps=range(0.1, 3, 5), folder, scale=1, transport=missing)
+    # c = FermionBasis(1:N, (:↑, :↓); qn=QuantumDots.parity)
+    c = FermionBdGBasis(1:N, (:↑, :↓))
+    f, f!, cache = hamfunc(Rδϕ_Rε(), c, fixedparams)
+    ss = optimize ? find_sweet_spot((f, f!, cache), c, Rδϕ_Rε(); exps, MaxTime) : missing
+    εs = sqrt(fixedparams.Ez^2 - fixedparams.Δ^2) .+ scale * 0.7 * fixedparams.t * range(-1, 1, length=res[1])
+    δϕs = range(0, pi, length=res[2])
+    iter = Iterators.product(δϕs, εs) |> collect
+    mapfunc(δϕε) = fullsolve(f!(cache, [δϕε[1], δϕε[2], εmid]), c; transport)
+    data = map(mapfunc, iter)
+    join_data(ss, data, N, (εs, δϕs, ("ε", "δϕ")), "full", save, folder)
+end
+
+function conductance_sweep(fixedparams, ss, εs, Vs, T)
     δϕ = ss[1]
     ε0 = ss[2]
+    c = FermionBasis(1:3,(:↑, :↓), qn=QuantumDots.parity)
     f, f!, cache = hamfunc(Hδϕ_Aε(), c, fixedparams)
     tl(V) = Transport(QuantumDots.PauliSystem, (; T, μ=(V, 0.0)))
     tr(V) = Transport(QuantumDots.PauliSystem, (; T, μ=(0.0, V)))

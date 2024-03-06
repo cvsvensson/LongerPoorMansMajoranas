@@ -32,6 +32,11 @@ plot_LD(Kdata)
 ## Full model
 calculate_full_phase_data(40; save=true, res=(250, 250), fixedparams, MaxTime=2, optimize=true, exps=range(0.1, 3, 5), scale=0.75, folder="high_res")
 ##
+εmids = range(2.85, 3.0, 10)
+d3s = [calculate_refl_phase_data(3, εmid; save=false, res=(50, 50), fixedparams, MaxTime=2, optimize=true, exps=range(0.1, 3, 5), scale=0.75, folder="high_res") for εmid in εmids]
+##
+foreach((d, εmid) -> display(plot_f(d, MP; plot_ss=true, title="εmid = $εmid", colorbar_title="1-MP")), d3s, εmids)
+##
 load_full_data(N) = wload(datadir("phase_diagram", "high_res", "full_N=$(N)_fixedparams=(t = 0.5, θ = QuantumDots.DiffChainParameter{Float64}(2.746801533890032), V = 0, Δ = 1, U = 0.0, Ez = 3).jld2"))
 F2data = load_full_data(2)
 F3data = load_full_data(3)
@@ -141,15 +146,18 @@ perturbative_data = [join_data(nothing, [perturbative_solutions(a, M, fixedparam
 pfdata = [perturbative_data..., Fdata]
 ##
 # plot(map(data -> plot_f(data, MPU), pfdata)[2:4]..., layout=(1, 3))
-using LaTeXStrings
-p1 = plot(plot_f(pfdata[2], MPU), colorbar=false, yshowaxis=true, title=L"H_1")
-p2 = plot(plot_f(pfdata[3], MPU), colorbar=false, yshowaxis=false, title=L"H_2", ylabel="")
-p3 = plot(plot_f(pfdata[4], MPU), colorbar=false, yshowaxis=false, title=L"H_{full}", ylabel="")
+let f = x -> x.conductance[1, 1]#MPU
+    c = :amp
+    clims = (0, 30)
+    p1 = plot(plot_f(pfdata[2], f; c, clims,); colorbar=false, leg=false, yshowaxis=true, title=L"H_1")
+    p2 = plot(plot_f(pfdata[3], f; c, clims,); colorbar=false, leg=false, yshowaxis=false, title=L"H_2", ylabel="")
+    p3 = plot(plot_f(pfdata[4], f; c, clims,); colorbar=false, leg=false, yshowaxis=false, title=L"H_{full}", ylabel="")
 
-h2 = scatter([0, 0], [0, 1], zcolor=[0, 3], clims=(0, 1),
-    xlims=(1, 1.1), xshowaxis=false, yshowaxis=false, label="", c=:viridis, colorbar_title="MPU", grid=false)
-l = @layout [grid(1, 3) a{0.01w}]
-p_all = plot(p1, p2, p3, h2, layout=l, size=(800, 300))
+    h2 = scatter([0, 0], [0, 1], zcolor=[0, 3], clims=(0, 1),
+        xlims=(1, 1.1), xshowaxis=false, yshowaxis=false, label="", c=:viridis, colorbar_title="MPU", grid=false)
+    l = @layout [grid(1, 3) a{0.01w}]
+    p_all = plot(p1, p2, p3, h2, layout=l, size=(800, 300))
+end
 ##
 plot(map(data -> plot_f(data, sqrt ∘ MP), pfdata)...)
 plot(map(data -> plot_f(data, MPU), pfdata)...)
