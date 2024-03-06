@@ -67,7 +67,7 @@ function plot_f(data, f; clims=missing, frame=:box, thickness_scaling=1.3, plot_
 
     clims = ismissing(clims) ? (0minimum(levels) - 1e-12, 1) : clims
 
-    p = heatmap(x, y, z; c=cgrad(:viridis, rev=true), clims, xlabel, ylabel, frame, xlims, ylims, thickness_scaling, kwargs...)
+    p = heatmap(x, y, z; clims, xlabel, ylabel, frame, xlims, ylims, thickness_scaling, kwargs...)
     ticks_length!(tl=0.015)
     zgap = map(x -> x.gap, data["data"])
     foreach((l, c) -> contour!(p, x, y, abs.(zgap); levels=[l], c), levels[[1, 3]], colors[[1, 3]])

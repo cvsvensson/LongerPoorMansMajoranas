@@ -54,12 +54,6 @@ labels = F3data["labels"]
 perturbative_data = [join_data(nothing, [perturbative_solutions(a, M, fixedparams, labels, [x, x, x], y) for y in δϕs, x in εs], 3, (εs, δϕs, ("ε", "δϕ")), "perturbative", false, "") for M in 0:2];
 pfdata = [perturbative_data..., F3data]
 ##
-plot_f(F2data, MP; c=cgrad(:viridis, rev=true, scale=x -> exp(5x)), leg=:bottomleft, plot_ss=false, fontfamily="Computer Modern", title="2", colorbar_titlefontrotation=-90, colorbar_title="1-MP")
-plot_f(F4data, MP; c=cgrad(:viridis, rev=true, scale=x -> exp(4x)), plot_ss=false, fontfamily="Computer Modern", title="4", colorbar_titlefontrotation=-90, leg=:bottomleft, colorbar_title="1-MP")
-plot_f(F5data, MP; c=cgrad(:viridis, rev=true, scale=x -> exp(4x)), plot_ss=false, fontfamily="Computer Modern", title="5", colorbar_titlefontrotation=-90, leg=:bottomleft, colorbar_title="1-MP")
-plot_f(F20data, MP; c=cgrad(:viridis, rev=true, scale=x -> exp(4x)), plot_ss=false, fontfamily="Computer Modern", title="20", colorbar_titlefontrotation=-90, leg=:bottomleft, colorbar_title="1-MP")
-plot_f(F40data, MP; c=cgrad(:viridis, rev=true, scale=x -> exp(6x)), plot_ss=false, fontfamily="Computer Modern", title="40", colorbar_titlefontrotation=-90, leg=:bottomleft, colorbar_title="1-MP")
-
 plot_f(F3data, MP; c=cgrad(:viridis, rev=true, scale=x -> exp(4x)), plot_ss=false, fontfamily="Computer Modern", title="Three sites", colorbar_titlefontrotation=-90, colorbar_title="1-MP")
 ##
 let
