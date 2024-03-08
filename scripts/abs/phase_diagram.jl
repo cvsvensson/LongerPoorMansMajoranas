@@ -19,12 +19,27 @@ plot_data(K40Data)
 
 ##
 fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0, Δ=1, U=0.0, Ez=3)
-@time data = calculate_full_phase_data(40; save=true, res=(100, 100), fixedparams, MaxTime=20, optimize=true, exps=range(0.1, 4, 5), folder="high_res")
-@time Kdata = calculate_kitaev_phase_data(2; save=false, res=(50, 50))
+@time data = calculate_full_phase_data(40; save=false, res=(100, 100), fixedparams, MaxTime=20, optimize=true, exps=range(0.1, 4, 5), folder="high_res")
+@time K2data = calculate_kitaev_phase_data(2; save=true, res=(500, 500), folder="high_res")
+@time K40data = calculate_kitaev_phase_data(40; save=true, res=(250, 250), folder="high_res")
 ##
-for N in 2:60
-    calculate_kitaev_phase_data(N; save=true, res=(50, 50))
-    calculate_full_phase_data(N; save=true, res=(50, 50), fixedparams, MaxTime=10, optimize=true, exps=range(0.1, 3, 5))
+let
+    level_magnitude = 0.1
+    c = cgrad(:viridis, rev=true, scale=x -> exp(4abs(x)))
+    kwargs = (; c, colorbar=false, level_magnitude, fontfamily="Computer Modern",
+        left_margin=-0Plots.mm, right_margin=-2Plots.mm, top_margin=2Plots.mm, bottom_margin=1Plots.mm)
+    p1 = plot_f(K2data, MP; legend_position=:bottomleft, plot_ss=false, title="2 sites", kwargs...)
+    # p2 = plot_f(pfdata[3], MP; legend=false, plot_ss=false, ylabel="", yshowaxis=false, title=L"H_2^\mathrm{eff}", kwargs...)
+    p3 = plot_f(K40data, MP; legend=false, plot_ss=false, ylabel="", yshowaxis=false, title="40 sites", kwargs...)
+    h2 = scatter([0], [0]; zcolor=[0], clims=(0.0, 1.0),
+        xlims=(1, 1.1), xshowaxis=false, yshowaxis=false, label="", c, colorbar_title="1-MP", grid=false)
+    l = @layout [grid(1, 2) a{0.001w}]
+    p_all = plot(p1, p3, h2, layout=l, thickness_scaling=1.5, size=(900, 400))
+end
+##
+for N in 2:20
+    #calculate_kitaev_phase_data(N; save=true, res=(50, 50))
+    calculate_full_phase_data(N; bdg=true, save=true, res=(2, 2), fixedparams, MaxTime=5 * N, target=LDf, optimize=true, exps=range(0.1, 3, 5), folder="ss2")
 end
 ##
 plot_LD(data)
@@ -37,7 +52,7 @@ d3s = [calculate_refl_phase_data(3, εmid; save=false, res=(50, 50), fixedparams
 ##
 foreach((d, εmid) -> display(plot_f(d, MP; plot_ss=true, title="εmid = $εmid", colorbar_title="1-MP")), d3s, εmids)
 ##
-load_full_data(N) = wload(datadir("phase_diagram", "high_res", "full_N=$(N)_fixedparams=(t = 0.5, θ = QuantumDots.DiffChainParameter{Float64}(2.746801533890032), V = 0, Δ = 1, U = 0.0, Ez = 3).jld2"))
+load_full_data(N, folder="high_res") = wload(synceddir("phase_diagram", folder, "full_N=$(N)_fixedparams=(t = 0.5, θ = QuantumDots.DiffChainParameter{Float64}(2.746801533890032), V = 0, Δ = 1, U = 0.0, Ez = 3).jld2"))
 F2data = load_full_data(2)
 F3data = load_full_data(3)
 F4data = load_full_data(4)
@@ -59,7 +74,7 @@ labels = F3data["labels"]
 perturbative_data = [join_data(nothing, [perturbative_solutions(a, M, fixedparams, labels, [x, x, x], y) for y in δϕs, x in εs], 3, (εs, δϕs, ("ε", "δϕ")), "perturbative", false, "") for M in 0:2];
 pfdata = [perturbative_data..., F3data]
 ##
-plot_f(F3data, MP; c=cgrad(:viridis, rev=true, scale=x -> exp(4x)), plot_ss=false, fontfamily="Computer Modern", title="Three sites", colorbar_titlefontrotation=-90, colorbar_title="1-MP")
+plot_f(F4data, MP; c=cgrad(:viridis, rev=true, scale=x -> exp(4abs(x))), plot_ss=false, title="Three sites", colorbar_title="1-MP")
 ##
 let
     level_magnitude = 0.01
@@ -105,6 +120,10 @@ data_gbl = groupby(data, :labels)
 foreach(data -> sort!(data, :N), data_gbl)
 ## plot
 p = plot(; xlabel="N", xticks=2:2:16, markers=true, frame=:box, legend=:topright, size=0.9 .* (600, 400), thickness_scaling=1.3, yscale=:log10, yticks=10.0 .^ (-6:2:0), fontfamily="Computer Modern");
+
+Fdatas_ss2 = Dict(zip(2:20, load_full_data.(2:20, "ss2")))
+plot!(2:20, map(N -> MP(Fdatas_ss2[N]["ss"].optsol), 2:20); legend=false, markers=true, ylabel="1-MP")
+
 plot!(2:16, map(x -> MP(x.optsol), data_gbl[1].ss)[1:15]; legend=false, markers=true, ylabel="1-MP")
 plot(2:16, map(x -> LD(x.optsol), data_gbl[1].ss)[1:15]; label="LD (stability under local perturbations)", markers=true)
 #map(x -> LD(x.optsol)^2, data_gbl[1].ss)[1:15] .|> log |> plot;

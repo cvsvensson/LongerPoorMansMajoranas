@@ -1,9 +1,9 @@
-kitaev_ham(c, ε, Δ, t) = BdGMatrix(QuantumDots.kitaev_hamiltonian(c; μ=-ε, t, Δ); check=false)
-function calculate_full_phase_data(N; bdg=ismissing(transport), save, res=(100, 100), fixedparams, MaxTime=10, optimize=true, exps=range(0.1, 3, 5), folder, scale=1, transport=missing)
+kitaev_ham(c, ε, Δ, t) = BdGMatrix(QuantumDots.kitaev_hamiltonian(c; μ=-ε, t, Δ); check=false, kwargs...)
+function calculate_full_phase_data(N; bdg, save, res=(100, 100), fixedparams, MaxTime=10, optimize=true, exps=range(0.1, 3, 5), folder, scale=1, transport=missing, kwargs...)
     # c = FermionBasis(1:N, (:↑, :↓); qn=QuantumDots.parity)
     c = bdg ? FermionBdGBasis(1:N, (:↑, :↓)) : FermionBasis(1:N, (:↑, :↓); qn=QuantumDots.parity)
     f, f!, cache = hamfunc(Hδϕ_Hε(), c, fixedparams)
-    ss = optimize ? find_sweet_spot((f, f!, cache), c, Hδϕ_Hε(); exps, MaxTime) : missing
+    ss = optimize ? find_sweet_spot((f, f!, cache), c, Hδϕ_Hε(); exps, MaxTime, kwargs...) : missing
     εs = sqrt(fixedparams.Ez^2 - fixedparams.Δ^2) .+ scale * 0.7 * fixedparams.t * range(-1, 1, length=res[1])
     δϕs = range(0, pi, length=res[2])
     iter = Iterators.product(δϕs, εs) |> collect
@@ -28,15 +28,16 @@ end
 function conductance_sweep(fixedparams, ss, εs, Vs, T)
     δϕ = ss[1]
     ε0 = ss[2]
-    c = FermionBasis(1:3,(:↑, :↓), qn=QuantumDots.parity)
+    c = FermionBasis(1:3, (:↑, :↓), qn=QuantumDots.parity)
     f, f!, cache = hamfunc(Hδϕ_Aε(), c, fixedparams)
     tl(V) = Transport(QuantumDots.PauliSystem, (; T, μ=(V, 0.0)))
     tr(V) = Transport(QuantumDots.PauliSystem, (; T, μ=(0.0, V)))
     iter = Iterators.product(εs, Vs)
+    onel = map((εV) -> fullsolve(f!(cache, [δϕ, εV[1], ε0, ε0]), c; transport=tl(εV[2])), iter)
     twol = map((εV) -> fullsolve(f!(cache, [δϕ, εV[1], εV[1], ε0]), c; transport=tl(εV[2])), iter)
     twor = map((εV) -> fullsolve(f!(cache, [δϕ, εV[1], εV[1], ε0]), c; transport=tr(εV[2])), iter)
     threel = map((εV) -> fullsolve(f!(cache, [δϕ, εV[1], εV[1], εV[1]]), c; transport=tl(εV[2])), iter)
-    return (; twol, twor, threel)
+    return (; onel, twol, twor, threel)
 end
 function pert_conductance_sweep(fixedparams, ss, εs, Vs, T)
     a = FermionBasis(1:3, qn=QuantumDots.parity)
@@ -48,10 +49,11 @@ function pert_conductance_sweep(fixedparams, ss, εs, Vs, T)
     fp = filter(kv -> kv[1] ∉ (:U, :V), pairs(fixedparams)) |> NamedTuple
 
     function get_nt(M)
+        onel = map((εV) -> fullsolve(perturbative_hamiltonian(a, M; fp..., δϕ, ε=[εV[1], ε0, ε0]), a; transport=tl(εV[2])), iter)
         twol = map((εV) -> fullsolve(perturbative_hamiltonian(a, M; fp..., δϕ, ε=[εV[1], εV[1], ε0]), a; transport=tl(εV[2])), iter)
         twor = map((εV) -> fullsolve(perturbative_hamiltonian(a, M; fp..., δϕ, ε=[εV[1], εV[1], ε0]), a; transport=tr(εV[2])), iter)
         threel = map((εV) -> fullsolve(perturbative_hamiltonian(a, M; fp..., δϕ, ε=[εV[1], εV[1], εV[2]]), a; transport=tl(εV[2])), iter)
-        return (; twol, twor, threel)
+        return (; onel, twol, twor, threel)
     end
     map(get_nt, 1:2)
 end

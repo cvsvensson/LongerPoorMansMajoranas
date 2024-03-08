@@ -1,7 +1,7 @@
 
-function plot_ss!(p, ss, N)
+function plot_ss!(p, ss, N; kwargs...)
     ss_pos = ss.sol
-    scatter!(p, [ss_pos[2]], [ss_pos[1]], markersize=5, color=:red, label="$(N)-site sweet spot")
+    scatter!(p, [ss_pos[2]], [ss_pos[1]]; markersize=5, color=:red, kwargs...)
 end
 plot_ss!(p, ss::Union{Nothing,Missing}, N) = nothing
 function plot_LD(data; clims=missing)
@@ -50,13 +50,13 @@ function ticks_length!(; tl=0.02)
 end
 
 
-function plot_f(data, f; clims=missing, frame=:box, thickness_scaling=1.3, plot_ss=true, level_magnitude=0.01, kwargs...)
+function plot_f(data, f; clims=missing, frame=:box, thickness_scaling=1.3, plot_ss=true, level_magnitude=0.01, ss_label="$(N)-site sweet spot", kwargs...)
     x = data["x"]
     xlabel = data["labels"][1]
     y = data["y"]
     ylabel = data["labels"][2]
     levels = level_magnitude .* [-1, 0, 1]
-    titles = ["0.01Δ", "0"]
+    titles = [string(level_magnitude, "Δ"), "0"]
     colors = [:orange, :red, :orange]
     z = map(f, data["data"])
 
@@ -75,7 +75,7 @@ function plot_f(data, f; clims=missing, frame=:box, thickness_scaling=1.3, plot_
     foreach((l, c) -> plot!(p, last(x) .* [1, 1] .+ 0.1, [0, 0]; leg_title="|δE|", c, label=l), titles, colors)
     #contour!(p, x, y, zgap; levels=range(-1, 1, 50))
     if plot_ss
-        plot_ss!(p, data["ss"], data["N"])
+        plot_ss!(p, data["ss"], data["N"]; label=ss_label)
     end
     p
 end
