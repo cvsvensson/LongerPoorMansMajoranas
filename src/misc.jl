@@ -81,11 +81,11 @@ function reduced_similarity(qps::AbstractVector{<:QuantumDots.QuasiParticle})
     cinds(n) = vcat(cell_positions(n), (cell_positions(n) .+ N))
     #cell_matrices = (; even=map(n -> ρeven[cinds(n), cinds(n)], 1:div(N, 2)), odd=map(n -> ρodd[cinds(n), cinds(n)], 1:div(N, 2)))
     fermions = QuantumDots.Dictionary(labels, [norm(ρeven[[n, n + N], [n, n + N]] - ρodd[[n, n + N], [n, n + N]], 2) for n in 1:length(labels)])
-    #cells = QuantumDots.Dictionary(1:div(N, 2), [norm(ρeven[cinds(n), cinds(n)] - ρodd[cinds(n), cinds(n)], 2) for n in 1:div(N, 2)])
-    return (; fermions, cells=missing)#, cell_matrices)
+    cells_bdg = QuantumDots.Dictionary(1:div(N, 2), [norm(ρeven[cinds(n), cinds(n)] - ρodd[cinds(n), cinds(n)], 2) for n in 1:div(N, 2)])
+    return (; fermions, cells_bdg)#, cell_matrices)
 end
 
-function half_majorana_polarizations(majcoeffs, basis)
+function get_majorana_polarizations(majcoeffs, basis)
     keys1 = spatial_labels(basis)
     N = length(keys1)
     n = 1#div(N, 2)
@@ -95,7 +95,8 @@ function half_majorana_polarizations(majcoeffs, basis)
     keysR = filter(k -> first(k) in keys1R, keys(basis))
     left = QuantumDots.majorana_polarization(majcoeffs..., keysL)
     right = QuantumDots.majorana_polarization(majcoeffs..., keysR)
-    return (; left, right)
+    singles = [QuantumDots.majorana_polarization(majcoeffs..., filter(k -> first(k) == key, keys(basis))) for key in keys1]
+    return (; left, right, singles)
 end
 function fullsolve(_H, basis::FermionBasis; reduced=true, transport=missing, oddvalindex=1)
     H = Hermitian(blockdiagonal(_H, basis))
@@ -108,7 +109,7 @@ function fullsolve(_H, basis::FermionBasis; reduced=true, transport=missing, odd
     evenvecs = fullsectors[2].vectors
     oddvec = oddvecs[:, oddvalindex]
     majcoeffs = QuantumDots.majorana_coefficients(oddvec, evenvecs[:, 1], basis)
-    mps = half_majorana_polarizations(majcoeffs, basis)
+    mps = get_majorana_polarizations(majcoeffs, basis)
     reduced = reduced ? reduced_similarity(basis, oddvec, evenvecs[:, 1]) : missing
     conductance = conductance_matrix(transport, eig, basis)
     return (; gap=oddvals[oddvalindex] - first(evenvals), gapratio=gapratio(oddvals, evenvals), reduced, mps, majcoeffs, energies=(oddvals, evenvals), conductance, excgap=excgap(oddvals, evenvals))
@@ -140,7 +141,7 @@ function fullsolve(_H::AbstractMatrix, basis::FermionBdGBasis; reduced=true, tra
     gapratio = sign(gap)abs(gap / excgap)
     # lefthalflabels = filter(l -> Base.first(l) <= div(N, 4), keys(basis).values)
     majcoeffs = QuantumDots.majorana_coefficients(best_majorana)
-    mps = half_majorana_polarizations(majcoeffs, basis)
+    mps = get_majorana_polarizations(majcoeffs, basis)
     reduced = reduced_similarity(qps)
     return (; gap, gapratio, reduced, mps, majcoeffs, excgap, energies=es, parity=gs_parity)
 end
@@ -155,11 +156,15 @@ excgap(odd, even) = min(odd[2] - odd[1], even[2] - even[1])
 excgap(sol) = excgap(sol.energies...)
 
 
-LD(sol) = sum(sol.reduced.cells) #maximum(sol.reduced.cells)#
+LD(sol) = norm(sol.reduced.cells) #maximum(sol.reduced.cells)#
 LDmax(sol) = maximum(sol.reduced.cells)
-LDf(sol) = sum(sol.reduced.fermions)
+LDf(sol) = norm(sol.reduced.fermions)
 LDfmax(sol) = maximum(sol.reduced.fermions)
+LDbdgmax(sol) = maximum(sol.reduced.cells_bdg)
+LDbdg(sol) = sum(sol.reduced.cells_bdg)
 MP(sol) = 1 - (abs(sol.mps.left.mp) + abs(sol.mps.right.mp)) / 2
+MPI(sol) = 1 - minimum(abs ∘ (x -> x.mp), sol.mps.singles)
+MPI2(sol) = 1 - mean(abs ∘ (x -> x.mp), sol.mps.singles)
 MPU(sol) = 1 - (abs(sol.mps.left.mpu) + abs(sol.mps.right.mpu)) / 2
 
 

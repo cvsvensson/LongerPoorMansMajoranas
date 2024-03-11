@@ -50,7 +50,7 @@ function ticks_length!(; tl=0.02)
 end
 
 
-function plot_f(data, f; clims=missing, frame=:box, thickness_scaling=1.3, plot_ss=true, level_magnitude=0.01, ss_label="$(N)-site sweet spot", kwargs...)
+function plot_f(data, f; clims=missing, frame=:box, plot_ss=true, level_magnitude=0.01, ss_label="$(data["N"])-site sweet spot", kwargs...)
     x = data["x"]
     xlabel = data["labels"][1]
     y = data["y"]
@@ -67,7 +67,7 @@ function plot_f(data, f; clims=missing, frame=:box, thickness_scaling=1.3, plot_
 
     clims = ismissing(clims) ? (0minimum(levels) - 1e-12, 1) : clims
 
-    p = heatmap(x, y, z; clims, xlabel, ylabel, frame, xlims, ylims, thickness_scaling, kwargs...)
+    p = heatmap(x, y, z; clims, xlabel, ylabel, frame, xlims, ylims,  kwargs...)
     ticks_length!(tl=0.015)
     zgap = map(x -> x.gap, data["data"])
     foreach((l, c) -> contour!(p, x, y, abs.(zgap); levels=[l], c), levels[[1, 3]], colors[[1, 3]])
@@ -91,7 +91,7 @@ function plot_MPU(data)
     ylims = (first(y), last(y))
 
     p = heatmap(x, y, z; c=cgrad(:viridis, rev=true), clims=(minimum(levels) - 1e-12, 1), xlabel, ylabel, colorbar_title="MPU", frame=:box, colorbar_titlefontrotation=-90,
-        xlims, ylims, thickness_scaling=1.3)
+        xlims, ylims)
     colors = [:white, :white, :red]
     zgap = map(x -> x.gap, data["data"])
     foreach((l, c) -> contour!(p, x, y, zgap; levels=[l], c), levels, colors)

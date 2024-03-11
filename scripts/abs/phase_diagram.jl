@@ -11,35 +11,25 @@ using LaTeXStrings
 synceddir(args...) = joinpath(ENV["Dropbox"], "data", "LongerPoorMans", args...)
 includet(scriptsdir("abs", "phase_plots.jl"))
 includet(scriptsdir("abs", "phase_misc.jl"))
+load_full_data(N, folder="high_res", dir=synceddir) = wload(dir("phase_diagram", folder, "full_N=$(N)_fixedparams=(t = 0.5, θ = QuantumDots.DiffChainParameter{Float64}(2.746801533890032), V = 0, Δ = 1, U = 0.0, Ez = 3).jld2"))
+load_kitaev_data(N, folder="high_res", dir=synceddir) = wload(dir("phase_diagram", folder, "kitaev_N=$(N)_fixedparams=(t = 0.5, θ = QuantumDots.DiffChainParameter{Float64}(2.746801533890032), V = 0, Δ = 1, U = 0.0, Ez = 3).jld2"))
 ##
 K2Data = wload(datadir("phase_diagram", "kitaev_N=2_fixedparams=(Δ = 1,).jld2"))
 K40Data = wload(datadir("phase_diagram", "kitaev_N=40_fixedparams=(Δ = 1,).jld2"))
-plot_data(K2Data)
-plot_data(K40Data)
-
+K2data = load_kitaev_data(2, "kitaev-high-res-ldbdg", datadir)
+K40data = load_kitaev_data(40, "kitaev-high-res-ldbdg", datadir)
 ##
 fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0, Δ=1, U=0.0, Ez=3)
 @time data = calculate_full_phase_data(40; save=false, res=(100, 100), fixedparams, MaxTime=20, optimize=true, exps=range(0.1, 4, 5), folder="high_res")
-@time K2data = calculate_kitaev_phase_data(2; save=true, res=(500, 500), folder="high_res")
-@time K40data = calculate_kitaev_phase_data(40; save=true, res=(250, 250), folder="high_res")
+
 ##
-let
-    level_magnitude = 0.1
-    c = cgrad(:viridis, rev=true, scale=x -> exp(4abs(x)))
-    kwargs = (; c, colorbar=false, level_magnitude, fontfamily="Computer Modern",
-        left_margin=-0Plots.mm, right_margin=-2Plots.mm, top_margin=2Plots.mm, bottom_margin=1Plots.mm)
-    p1 = plot_f(K2data, MP; legend_position=:bottomleft, plot_ss=false, title="2 sites", kwargs...)
-    # p2 = plot_f(pfdata[3], MP; legend=false, plot_ss=false, ylabel="", yshowaxis=false, title=L"H_2^\mathrm{eff}", kwargs...)
-    p3 = plot_f(K40data, MP; legend=false, plot_ss=false, ylabel="", yshowaxis=false, title="40 sites", kwargs...)
-    h2 = scatter([0], [0]; zcolor=[0], clims=(0.0, 1.0),
-        xlims=(1, 1.1), xshowaxis=false, yshowaxis=false, label="", c, colorbar_title="1-MP", grid=false)
-    l = @layout [grid(1, 2) a{0.001w}]
-    p_all = plot(p1, p3, h2, layout=l, thickness_scaling=1.5, size=(900, 400))
+for N in 2
+    # calculate_kitaev_phase_data(N; save=true, res=(250, 250), folder="kitaev-high-res-ldbdg")
+    calculate_full_phase_data(N; bdg=true, save=true, res=(500, 500), fixedparams, MaxTime=N, target=LongerPoorMansMajoranas.LDbdg, optimize=false, exps=range(0.1, 3, 5), folder="high-res-ldbdg", scale=0.75)
 end
-##
-for N in 2:20
+for N in [6, 8]
     #calculate_kitaev_phase_data(N; save=true, res=(50, 50))
-    calculate_full_phase_data(N; bdg=true, save=true, res=(2, 2), fixedparams, MaxTime=5 * N, target=LDf, optimize=true, exps=range(0.1, 3, 5), folder="ss2")
+    #calculate_full_phase_data(N; bdg=true, save=true, res=(2, 2), fixedparams, MaxTime=N * 5, target=LongerPoorMansMajoranas.LDbdg, optimize=true, exps=range(0.1, 3, 5), folder="ss-ldbdg")
 end
 ##
 plot_LD(data)
@@ -52,7 +42,7 @@ d3s = [calculate_refl_phase_data(3, εmid; save=false, res=(50, 50), fixedparams
 ##
 foreach((d, εmid) -> display(plot_f(d, MP; plot_ss=true, title="εmid = $εmid", colorbar_title="1-MP")), d3s, εmids)
 ##
-load_full_data(N, folder="high_res") = wload(synceddir("phase_diagram", folder, "full_N=$(N)_fixedparams=(t = 0.5, θ = QuantumDots.DiffChainParameter{Float64}(2.746801533890032), V = 0, Δ = 1, U = 0.0, Ez = 3).jld2"))
+
 F2data = load_full_data(2)
 F3data = load_full_data(3)
 F4data = load_full_data(4)
@@ -60,35 +50,11 @@ F5data = load_full_data(5)
 F40data = load_full_data(40)
 F20data = load_full_data(20)
 ##
-a = FermionBasis(1:3, qn=QuantumDots.parity)
-function perturbative_solutions(a, M, fixedparams, labels, x, y; transport=missing)
-    xy = NamedTuple(Symbol.(labels) .=> (x, y .* ones(2)))
-    fp = filter(kv -> kv[1] ∉ (:U, :V), pairs(fixedparams)) |> NamedTuple
-    params = merge(fp, xy)
-    H = perturbative_hamiltonian(a, M; params...)
-    fullsolve(H, a; transport)
-end
-εs = F3data["x"]
-δϕs = F3data["y"]
-labels = F3data["labels"]
-perturbative_data = [join_data(nothing, [perturbative_solutions(a, M, fixedparams, labels, [x, x, x], y) for y in δϕs, x in εs], 3, (εs, δϕs, ("ε", "δϕ")), "perturbative", false, "") for M in 0:2];
-pfdata = [perturbative_data..., F3data]
+# a = FermionBasis(1:3, qn=QuantumDots.parity)
+
 ##
-plot_f(F4data, MP; c=cgrad(:viridis, rev=true, scale=x -> exp(4abs(x))), plot_ss=false, title="Three sites", colorbar_title="1-MP")
+plot_f(pfdata[3], LongerPoorMansMajoranas.LDbdg; c=default_scale, plot_ss=false, title="Three sites", colorbar_title="1-MP")
 ##
-let
-    level_magnitude = 0.01
-    c = cgrad(:viridis, rev=true, scale=x -> exp(4abs(x)))
-    kwargs = (; c, colorbar=false, level_magnitude, fontfamily="Computer Modern",
-        left_margin=-0Plots.mm, right_margin=-2Plots.mm, top_margin=2Plots.mm, bottom_margin=1Plots.mm)
-    p1 = plot_f(pfdata[2], MP; legend_position=:bottomleft, plot_ss=false, title=L"H_1^\mathrm{eff}", kwargs...)
-    p2 = plot_f(pfdata[3], MP; legend=false, plot_ss=false, ylabel="", yshowaxis=false, title=L"H_2^\mathrm{eff}", kwargs...)
-    p3 = plot_f(pfdata[4], MP; legend=false, plot_ss=false, ylabel="", yshowaxis=false, title=L"H", kwargs...)
-    h2 = scatter([0], [0]; zcolor=[0], clims=(0.0, 1.0),
-        xlims=(1, 1.1), xshowaxis=false, yshowaxis=false, label="", c, colorbar_title="1-MP", grid=false)
-    l = @layout [grid(1, 3) a{0.001w}]
-    p_all = plot(p1, p2, p3, h2, layout=l, thickness_scaling=1.5, size=(900, 300))
-end
 
 ##
 plot_f(pfdata[4], MP; fontfamily="Computer Modern", leg=:bottomleft, plot_ss=false, colorbar_titlefontrotation=-90, size=0.6 .* (800, 600), colorbar_title="1-MP", c=cgrad(:viridis, rev=true, scale=x -> exp(4abs(x))))
@@ -119,10 +85,14 @@ data = collect_results(synceddir("phase_diagram", "lengths"))
 data_gbl = groupby(data, :labels)
 foreach(data -> sort!(data, :N), data_gbl)
 ## plot
-p = plot(; xlabel="N", xticks=2:2:16, markers=true, frame=:box, legend=:topright, size=0.9 .* (600, 400), thickness_scaling=1.3, yscale=:log10, yticks=10.0 .^ (-6:2:0), fontfamily="Computer Modern");
-
-Fdatas_ss2 = Dict(zip(2:20, load_full_data.(2:20, "ss2")))
-plot!(2:20, map(N -> MP(Fdatas_ss2[N]["ss"].optsol), 2:20); legend=false, markers=true, ylabel="1-MP")
+Fdatas_ss2 = Dict(zip(2:20, load_full_data.(2:20, "ss-ldbdg", datadir)))
+Fdatas_ss3 = Dict(zip(2:6, load_full_data.(2:6, "ldbdg", datadir)))
+##
+Ns = sort(filter(k -> k ∉ [12, 16, 17, 19], collect(keys(Fdatas_ss2))))
+p = plot(; xlabel="N", xticks=Ns[1]:2:Ns[end], markers=true, frame=:box, legend=:topright, size=0.9 .* (600, 400), ylims=(1e-4, 1), thickness_scaling=1.5, yscale=:log10, yticks=10.0 .^ (-4:1:1), fontfamily="Computer Modern");
+plot!(Ns, map(N -> LongerPoorMansMajoranas.LDbdg(Fdatas_ss2[N]["ss"].optsol), Ns); c=:lighttest, legend=false, markers=true, ylabel="LD")
+##
+plot!(2:6, map(N -> LDf(Fdatas_ss3[N]["ss"].optsol), 2:6); c=:red, legend=false, markers=true, ylabel="1-MP")
 
 plot!(2:16, map(x -> MP(x.optsol), data_gbl[1].ss)[1:15]; legend=false, markers=true, ylabel="1-MP")
 plot(2:16, map(x -> LD(x.optsol), data_gbl[1].ss)[1:15]; label="LD (stability under local perturbations)", markers=true)
@@ -156,6 +126,7 @@ N = 3
 transport = Transport(QuantumDots.PauliSystem, (; T=1 / 20, μ=(0.0, 0.0)))
 Kdata = calculate_kitaev_phase_data(N; save=false, res=(53, 50), folder=nothing)
 Fdata = calculate_full_phase_data(N; save=false, res=(53, 50), scale=1, fixedparams, optimize=true, folder=nothing, transport)
+Fdata = Fdatas[3]
 εs = Fdata["x"]
 δϕs = Fdata["y"]
 ##

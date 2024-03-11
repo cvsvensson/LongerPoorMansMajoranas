@@ -1,4 +1,4 @@
-kitaev_ham(c, ε, Δ, t) = BdGMatrix(QuantumDots.kitaev_hamiltonian(c; μ=-ε, t, Δ); check=false, kwargs...)
+kitaev_ham(c, ε, Δ, t) = BdGMatrix(QuantumDots.kitaev_hamiltonian(c; μ=-ε, t, Δ); check=false)
 function calculate_full_phase_data(N; bdg, save, res=(100, 100), fixedparams, MaxTime=10, optimize=true, exps=range(0.1, 3, 5), folder, scale=1, transport=missing, kwargs...)
     # c = FermionBasis(1:N, (:↑, :↓); qn=QuantumDots.parity)
     c = bdg ? FermionBdGBasis(1:N, (:↑, :↓)) : FermionBasis(1:N, (:↑, :↓); qn=QuantumDots.parity)
