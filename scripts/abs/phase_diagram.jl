@@ -27,10 +27,38 @@ for N in 2
     # calculate_kitaev_phase_data(N; save=true, res=(250, 250), folder="kitaev-high-res-ldbdg")
     calculate_full_phase_data(N; bdg=true, save=true, res=(500, 500), fixedparams, MaxTime=N, target=LongerPoorMansMajoranas.LDbdg, optimize=false, exps=range(0.1, 3, 5), folder="high-res-ldbdg", scale=0.75)
 end
-for N in [6, 8]
+##
+data = []
+initials = [0.0, 0.0]
+fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0, Δ=1, U=0.0, Ez=3)
+for N in 2:20
+    alg = BestOf(best_algs()[1:end-1])
+    target = LongerPoorMansMajoranas.LDbdg
     #calculate_kitaev_phase_data(N; save=true, res=(50, 50))
-    #calculate_full_phase_data(N; bdg=true, save=true, res=(2, 2), fixedparams, MaxTime=N * 5, target=LongerPoorMansMajoranas.LDbdg, optimize=true, exps=range(0.1, 3, 5), folder="ss-ldbdg")
+    d = calculate_full_phase_data(N; bdg=true, save=true, res=(2, 2), fixedparams, MaxTime=5N, target, optimize=true, exps=range(0.1, 3, 5), folder="ss_bdg_bestof", final_NM=false, minexcgap=0.15, alg, initials)
+    initials = d["ss"].sol
+    push!(data, d)
 end
+##
+plot_LD(data)
+##
+fig = plot();
+let
+    f = d -> LDf(d["ss"].optsol)
+    f = d -> LongerPoorMansMajoranas.LD(d["ss"].optsol)
+    # f = d -> d["ss"].optsol.excgap
+    # f = d -> d["ss"].sol[1]
+    ds = map(f, data.)
+    d = map(f, data)
+    println(sum(d))
+    plot!(fig, d, ls=:solid, ylims=(0, 1))
+
+    # dnm = map(f, dataNM[k])
+    # println(k, "_nm_", sum(dnm))
+    # plot!(fig, dnm, ls=:dash, c=(k), label=k)
+end
+fig
+
 ##
 plot_LD(data)
 plot_LD(Kdata)

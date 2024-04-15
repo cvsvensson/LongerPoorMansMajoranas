@@ -38,6 +38,16 @@ Base.@kwdef struct Optimizer{f,r,i,t,ec,B}
     basis::B
 end
 
+struct BestOf{OS}
+    optimizers::OS
+    function BestOf(opts::OS) where {OS}
+        if any(isa.(opts, Optim.ConjugateGradient))
+            throw(ArgumentError("ConjugateGradient is not supported in BestOf"))
+        end
+        new{OS}(opts)
+    end
+end
+
 
 cost_function(gap, excgap, reduced::Number; exp, minexcgap) = cost_reduced(reduced) + cost_energy(gap, excgap; exp, minexcgap)
 cost_energy(gap, excgap; minexcgap, exp) = cost_gap(gap, exp) + cost_excgap(excgap, minexcgap, exp)
@@ -46,8 +56,8 @@ cost_excgap(excgap, minexcgap, exp) = ((excgap - minexcgap) < 0 ? 1.0 + 10.0^exp
 cost_gap(gap, exp) = 10.0^(exp) * abs2(gap)
 cost_reduced(reduced) = reduced^2
 
-best_algs() = [BBO_probabilistic_descent(), BBO_generating_set_search(), BBO_adaptive_de_rand_1_bin_radiuslimited(), Metaheuristics.SA(), Metaheuristics.DE(), Optim.IPNewton(), Optim.ConjugateGradient(), Optim.NelderMead()]
-best_alg_names() = string.([:BBO_probabilistic_descent, :BBO_generating_set_search, :BBO_adaptive_de_rand_1_bin_radiuslimited, :Metaheuristics_SA, :Metaheuristics_DE, :Optim_IPNewton, :Optim_ConjugateGradient, :Optim_NelderMead])
+best_algs() = [BBO_probabilistic_descent(), BBO_generating_set_search(), BBO_adaptive_de_rand_1_bin_radiuslimited(), Metaheuristics.DE(), Optim.NelderMead(), Optim.ConjugateGradient()] #Optim.IPNewton(), Metaheuristics.SA(),
+best_alg_names() = string.([:BBO_probabilistic_descent, :BBO_generating_set_search, :BBO_adaptive_de_rand_1_bin_radiuslimited, :Metaheuristics_DE, :Optim_NelderMead, :Optim_ConjugateGradient]) #:Optim_IPNewton, :Metaheuristics_SA,
 function decompose_rϕε(ps, N=div(2length(ps), 3))
     Nhalf = div(N + 1, 2)
     Nhalf2 = div(N, 2)
@@ -192,7 +202,7 @@ end
 opt_func(opt::OptProb, ::IPNewton) = opt_func_cons(opt.hamfunc, opt.basis, AutoFiniteDiff(), opt.target)
 opt_func(opt::OptProb, ::Optim.ConjugateGradient) = opt_func(opt.hamfunc, opt.basis, AutoFiniteDiff(), opt.target)
 opt_func(opt::OptProb, ::NelderMead) = opt_func(opt.hamfunc, opt.basis, AutoFiniteDiff(), opt.target)
-opt_func(opt::OptProb, alg) = opt_func(opt.hamfunc, opt.basis, nothing, opt.target)
+opt_func(opt::OptProb, alg) = opt_func(opt.hamfunc, opt.basis, AutoFiniteDiff(), opt.target)
 
 
 function opt_func_cons(hamfunc, basis, ad=nothing, target=x -> MPU(x) + LDf(x))
@@ -287,38 +297,65 @@ function get_ranges(::Aϕ_Rε, N)
     vcat(ϕranges, εranges)
 end
 default_exps() = collect(range(0.1, 3, length=5))
-function SciMLBase.solve(prob::OptProb, alg; MaxTime=5, minexcgap=1 / 4, exps=default_exps(), maxiters=1000, initials=get_initials(prob), kwargs...)
+
+function SciMLBase.solve(prob::OptProb, alg::BestOf; minexcgap, initials=get_initials(prob), kwargs...)
     f, fs = opt_func(prob, alg)
-    refinements = length(exps)
-    maxtime = MaxTime / refinements
     ranges = get_ranges(prob)
+    println(kwargs)
+    res = map(alg -> solve((f, fs), alg; minexcgap, ranges, initials, kwargs...), alg.optimizers)
+    res = filter(x -> x.optsol.excgap >= minexcgap, res)
+    res = sort(res, by=x -> prob.target(x.optsol))
+    return merge(res[1], (; all_ss=res))
+end
+function SciMLBase.solve(prob::OptProb, alg; initials=get_initials(prob), kwargs...)
+    f, fs = opt_func(prob, alg)
+    ranges = get_ranges(prob)
+    solve((f, fs), alg; initials, ranges, kwargs...)
+end
+function SciMLBase.solve((f, fs), alg; MaxTime=5, minexcgap=1 / 4, exps=default_exps(), maxiters=1000, initials, final_NM=false, ranges, kwargs...)
+    refinements = length(exps) + final_NM
+    maxtime = MaxTime / refinements
     lb = map(first, ranges)
     ub = map(last, ranges)
     newinitials = map(clamp, initials, lb, ub)
+    println("Finding sweet spot with ", alg)
     println("Initial point: ", newinitials)
-    prob2 = OptimizationProblem(f, newinitials, (first(exps), minexcgap); lb, ub)
-    sol = solve(prob2, alg; maxiters, maxtime)
+    prob = OptimizationProblem(f, newinitials, (first(exps), minexcgap); lb, ub)
+    sol = solve(prob, alg; maxiters, maxtime, kwargs...)
     for (n, exp) in enumerate(Iterators.drop(exps, 1))
         newinitials = map(clamp, sol.u, lb, ub)
         println("$n, Sweet spot:", newinitials)
-        prob2 = OptimizationProblem(f, initials, (exp, minexcgap); lb=map(first, ranges), ub=map(last, ranges))
-        sol = solve(prob2, alg; maxiters, maxtime, kwargs...)
+        prob = OptimizationProblem(f, newinitials, (exp, minexcgap); lb=map(first, ranges), ub=map(last, ranges))
+        sol = solve(prob, alg; maxiters, maxtime, kwargs...)
+    end
+    if final_NM
+        println("Fine-tuning with Nelder-Mead. Sweet spot:", sol.u)
+        prob = OptimizationProblem(f, sol.u, (last(exps), minexcgap);)
+        sol = solve(prob, NelderMead(); maxiters, maxtime, kwargs...)
     end
     optsol = fs(sol)
     # params = NamedTuple(zip((:Δ, :δϕ, :ε), decompose(sol)))
     return (; alg, sol, optsol)
 end
 
-function SciMLBase.solve(prob::OptProb, alg::IPNewton; MaxTime=5, minexcgap=1 / 4, maxiters=1000, initials=get_initials(prob), kwargs...)
+function SciMLBase.solve(prob::OptProb, alg::IPNewton; MaxTime=5, minexcgap=1 / 4, maxiters=1000, initials=get_initials(prob), final_NM, exps, kwargs...)
     ranges = get_ranges(prob)
     lb = map(first, ranges)
     ub = map(last, ranges)
+    maxtime = MaxTime / (1 + final_NM)
+    println("Finding sweet spot with ", alg)
     println("Initial point: ", initials)
     lcons = [0.0, 0.0]
     ucons = [0.0, Inf]
     f, fs = opt_func(prob, alg)
     prob2 = OptimizationProblem(f, initials, minexcgap; lb, ub, lcons, ucons, kwargs...)#, allow_f_increases = true, store_trace = true)
-    sol = solve(prob2, alg; maxiters, maxtime=MaxTime, kwargs...)
+    sol = solve(prob2, alg; maxiters, maxtime, kwargs...)
+    if final_NM
+        println("Fine-tuning with Nelder-Mead. Sweet spot:", sol.u)
+        prob2 = OptimizationProblem(f, sol.u, minexcgap;)
+        println(kwargs)
+        sol = solve(prob2, NelderMead(); maxiters, maxtime, kwargs...)
+    end
     optsol = fs(sol)
     # params = NamedTuple(zip((:Δ, :δϕ, :ε), decompose(sol)))
     return (; alg, sol, optsol)

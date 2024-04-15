@@ -21,6 +21,7 @@ export Transport, solve
 export charge_stability_scan
 export Aϕ_Rε, RΔ_Rδϕ_Rε, Rδϕ_Rε, Hδϕ_Hε, Hδϕ_Aε, hamfunc
 export perturbative_hamiltonian
+export BestOf
 
 include("misc.jl")
 include("optimize.jl")

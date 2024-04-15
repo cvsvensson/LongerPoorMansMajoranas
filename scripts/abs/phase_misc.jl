@@ -58,14 +58,14 @@ function pert_conductance_sweep(fixedparams, ss, εs, Vs, T)
     map(get_nt, 1:2)
 end
 
-function find_sweet_spot(N; MaxTime, exps=range(0.1, 3, 5))
+function find_sweet_spot(N; MaxTime, exps=range(0.1, 3, 5), kwargs...)
     c = FermionBdGBasis(1:N, (:↑, :↓))
     f, f!, cache = hamfunc(Hδϕ_Hε(), c, fixedparams)
-    find_sweet_spot((f, f!, cache), c, Hδϕ_Hε(); exps, MaxTime)
+    find_sweet_spot((f, f!, cache), c, Hδϕ_Hε(); exps, MaxTime, kwargs...)
 end
-function find_sweet_spot((f, f!, cache), c, optparams=Hδϕ_Hε(); exps, MaxTime, target=MPU, minexcgap=0.0)
+function find_sweet_spot((f, f!, cache), c, optparams=Hδϕ_Hε(); exps, MaxTime, target=MPU, minexcgap=0.0, alg=best_algs()[1], kwargs...)
     prob = OptProb(; hamfunc=x -> f!(cache, x), basis=c, optparams, target)
-    return solve(prob, best_algs()[1]; minexcgap, maxiters=100000, MaxTime, exps)
+    return solve(prob, alg; minexcgap, maxiters=100000, MaxTime, exps, kwargs...)
 end
 function join_data(sol, data, N, (x, y, labels), prefix, save, folder)
     phase_data = Dict("data" => data, "y" => y, "x" => x, "labels" => labels, "N" => N, "fixedparams" => fixedparams, "ss" => sol)
