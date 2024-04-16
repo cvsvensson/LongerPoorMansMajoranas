@@ -14,7 +14,7 @@ using Statistics
 import AbstractDifferentiation as AD
 using FiniteDifferences
 
-export c, LD, LDf, MP, MPU, MPI, excgap
+export c, LD, LDf, MP, MPU, MPI, excgap, LDbdg, LDbdgmax, LDmax, LDfmax
 export hamiltonian, cell_labels, fullsolve, reduced_similarity
 export get_sweet_spot, reflect, diffreflect, OptProb, best_algs, best_alg_names
 export Transport, solve

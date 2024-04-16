@@ -5,23 +5,6 @@ struct Rδϕ_Rε <: AbstractOptParams end
 struct Hδϕ_Hε <: AbstractOptParams end
 struct Hδϕ_Aε <: AbstractOptParams end
 
-Base.@kwdef struct BBOptimizer{f,r,i,t,ec,B}
-    hamfunc::f
-    ranges::Vector{r}
-    initials::Vector{i}
-    MaxTime::Float64 = 10.0
-    minexcgap::Float64 = 0.0
-    exps::Vector{Float64} = Float64.(collect(range(0.5, 3; length=4)))
-    target::t = LD
-    tracemode::Symbol = :silent
-    extra_cost::ec = (x...) -> 0
-    Method::Symbol = :probabilistic_descent
-    PopulationSize::Int = 100
-    TargetFitness::Float64 = 0.0
-    basis::B
-end
-
-
 Base.@kwdef struct Optimizer{f,r,i,t,ec,B}
     hamfunc::f
     ranges::Vector{r}
@@ -53,7 +36,7 @@ cost_function(gap, excgap, reduced::Number; exp, minexcgap) = cost_reduced(reduc
 cost_energy(gap, excgap; minexcgap, exp) = cost_gap(gap, exp) + cost_excgap(excgap, minexcgap, exp)
 cost_excgap(excgap, minexcgap, exp) = ((excgap - minexcgap) < 0 ? 1.0 + 10.0^exp * abs(excgap - minexcgap) : 0.0)
 # cost_gap(gap, exp) = abs(gap) > 2 * 10.0^(-exp) ? 1.0 + 10^(exp) * abs2(gap) : abs2(gap)
-cost_gap(gap, exp) = 10.0^(exp) * abs2(gap)
+cost_gap(gap, exp) = 10.0^(exp) * abs(gap)
 cost_reduced(reduced) = reduced^2
 
 best_algs() = [BBO_probabilistic_descent(), BBO_generating_set_search(), BBO_adaptive_de_rand_1_bin_radiuslimited(), Metaheuristics.DE(), Optim.NelderMead(), Optim.ConjugateGradient()] #Optim.IPNewton(), Metaheuristics.SA(),
@@ -298,12 +281,11 @@ function get_ranges(::Aϕ_Rε, N)
 end
 default_exps() = collect(range(0.1, 3, length=5))
 
-function SciMLBase.solve(prob::OptProb, alg::BestOf; minexcgap, initials=get_initials(prob), kwargs...)
+function SciMLBase.solve(prob::OptProb, alg::BestOf; minexcgap, initials=get_initials(prob), exps=default_exps(), kwargs...)
     f, fs = opt_func(prob, alg)
     ranges = get_ranges(prob)
-    println(kwargs)
-    res = map(alg -> solve((f, fs), alg; minexcgap, ranges, initials, kwargs...), alg.optimizers)
-    res = filter(x -> x.optsol.excgap >= minexcgap, res)
+    res = map(alg -> solve((f, fs), alg; minexcgap, ranges, initials, exps, kwargs...), alg.optimizers)
+    res = filter(x -> x.optsol.excgap >= minexcgap && abs(x.optsol.gap) < 2 * 10.0^(-last(exps)), res)
     res = sort(res, by=x -> prob.target(x.optsol))
     return merge(res[1], (; all_ss=res))
 end
@@ -360,40 +342,6 @@ function SciMLBase.solve(prob::OptProb, alg::IPNewton; MaxTime=5, minexcgap=1 / 
     # params = NamedTuple(zip((:Δ, :δϕ, :ε), decompose(sol)))
     return (; alg, sol, optsol)
     # return sol
-end
-
-tracemode(opt::BBOptimizer) = opt.tracemode
-function cost(exp, opt::BBOptimizer)
-    function _cost(args)
-        sol = fullsolve(opt.hamfunc(args...), opt.basis)
-        cost_function(sol.gap, sol.excgap, opt.target(sol); exp, minexcgap=opt.minexcgap) + opt.extra_cost(args, exp)
-    end
-end
-
-function get_sweet_spot(opt::BBOptimizer)
-    refinements = length(opt.exps)
-    SearchRange = opt.ranges #map(expand_searchrange, opt.ranges, opt.initials)
-    NumDimensions = length(SearchRange)
-    MaxTime = opt.MaxTime / refinements
-    TargetFitness = opt.TargetFitness
-    println("Initial point: ", opt.initials)
-    println("SearchRange: ", SearchRange)
-    Method = opt.Method
-    res = bboptimize(cost(first(opt.exps), opt), opt.initials;
-        SearchRange, NumDimensions, MaxTime, TraceInterval=10.0,
-        TraceMode=tracemode(opt),
-        Method, PopulationSize=opt.PopulationSize,
-        TargetFitness)
-    for exp in Iterators.drop(opt.exps, 1)
-        ss::typeof(opt.initials) = best_candidate(res)
-        println("Sweet spot:", ss)
-        println("SearchRange:", SearchRange)
-        res = bboptimize(cost(exp, opt), ss; SearchRange, NumDimensions,
-            MaxTime, TraceInterval=10.0, TraceMode=tracemode(opt),
-            Method, TargetFitness,
-            PopulationSize=opt.PopulationSize)
-    end
-    return res
 end
 
 ##

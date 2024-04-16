@@ -62,12 +62,15 @@ function reduced_similarity(basis, oddvec::AbstractVector, evenvec)
     o = oddvec * oddvec'
     e = evenvec * evenvec'
     δρ = o - e
-    fermions = map(label -> norm(partial_trace(δρ, (label,), basis), 2), keys(basis))
+    fermions = map(label -> sum(abs, partial_trace(δρ, (label,), basis)), keys(basis))
     labels = cell_labels(basis)
 
     cells = map(n -> norm(partial_trace(δρ, labels(n), basis), 2), spatial_labels(basis))
     cells2 = map((n1, n2) -> norm(partial_trace(δρ, sort(union(labels(n1), labels(n2)); by=last), basis), 2), spatial_labels(basis), Iterators.drop(spatial_labels(basis), 1))
-    return (; fermions, cells, cells2)
+
+    local_fermions(n) = reduce(vcat, [basis[l], basis[l]'] for l in labels(n))
+    cells_bdg = QuantumDots.Dictionary(spatial_labels(basis), [sum(abs, tr(δρ * (f1 * f2)) for (f1, f2) in Base.product(local_fermions(n), local_fermions(n))) for n in spatial_labels(basis)])
+    return (; fermions, cells, cells2, cells_bdg)
 end
 
 function reduced_similarity(qps::AbstractVector{<:QuantumDots.QuasiParticle})
@@ -80,8 +83,8 @@ function reduced_similarity(qps::AbstractVector{<:QuantumDots.QuasiParticle})
     cell_positions(n) = [basis.position[cl] for cl in cell_labels(n, basis)]
     cinds(n) = vcat(cell_positions(n), (cell_positions(n) .+ N))
     #cell_matrices = (; even=map(n -> ρeven[cinds(n), cinds(n)], 1:div(N, 2)), odd=map(n -> ρodd[cinds(n), cinds(n)], 1:div(N, 2)))
-    fermions = QuantumDots.Dictionary(labels, [norm(ρeven[[n, n + N], [n, n + N]] - ρodd[[n, n + N], [n, n + N]], 2) for n in 1:length(labels)])
-    cells_bdg = QuantumDots.Dictionary(1:div(N, 2), [norm(ρeven[cinds(n), cinds(n)] - ρodd[cinds(n), cinds(n)], 2) for n in 1:div(N, 2)])
+    fermions = QuantumDots.Dictionary(labels, [sum(abs, ρeven[[n, n + N], [n, n + N]] - ρodd[[n, n + N], [n, n + N]]) for n in 1:length(labels)])
+    cells_bdg = QuantumDots.Dictionary(1:div(N, 2), [sum(abs, ρeven[cinds(n), cinds(n)] - ρodd[cinds(n), cinds(n)]) for n in 1:div(N, 2)])
     return (; fermions, cells_bdg)#, cell_matrices)
 end
 
@@ -156,12 +159,12 @@ excgap(odd, even) = min(odd[2] - odd[1], even[2] - even[1])
 excgap(sol) = excgap(sol.energies...)
 
 
-LD(sol) = norm(sol.reduced.cells) #maximum(sol.reduced.cells)#
+LD(sol) = sum(abs, sol.reduced.cells) #maximum(sol.reduced.cells)#
 LDmax(sol) = maximum(sol.reduced.cells)
-LDf(sol) = norm(sol.reduced.fermions)
+LDf(sol) = sum(abs, sol.reduced.fermions)
 LDfmax(sol) = maximum(sol.reduced.fermions)
 LDbdgmax(sol) = maximum(sol.reduced.cells_bdg)
-LDbdg(sol) = sum(sol.reduced.cells_bdg)
+LDbdg(sol) = sum(abs, sol.reduced.cells_bdg)
 MP(sol) = 1 - (abs(sol.mps.left.mp) + abs(sol.mps.right.mp)) / 2
 MPI(sol) = 1 - minimum(abs ∘ (x -> x.mp), sol.mps.singles)
 MPI2(sol) = 1 - mean(abs ∘ (x -> x.mp), sol.mps.singles)

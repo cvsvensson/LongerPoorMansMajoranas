@@ -50,7 +50,7 @@ function ticks_length!(; tl=0.02)
 end
 
 
-function plot_f(data, f; clims=missing, frame=:box, plot_ss=true, level_magnitude=0.01, ss_label="$(data["N"])-site sweet spot", kwargs...)
+function plot_f(data, f; clim_max=1, clims=missing, frame=:box, plot_ss=true, level_magnitude=0.01, ss_label="$(data["N"])-site sweet spot", kwargs...)
     x = data["x"]
     xlabel = data["labels"][1]
     y = data["y"]
@@ -65,9 +65,9 @@ function plot_f(data, f; clims=missing, frame=:box, plot_ss=true, level_magnitud
     xlims = (first(x), last(x)) #.+ xdiff / 40 .* (-1, 1)
     ylims = (first(y), last(y)) #.+ ydiff / 40 .* (-1, 1)
 
-    clims = ismissing(clims) ? (0minimum(levels) - 1e-12, 1) : clims
+    clims = ismissing(clims) ? (0minimum(levels) - 1e-12, clim_max) : clims
 
-    p = heatmap(x, y, z; clims, xlabel, ylabel, frame, xlims, ylims,  kwargs...)
+    p = heatmap(x, y, z; clims, xlabel, ylabel, frame, xlims, ylims, kwargs...)
     ticks_length!(tl=0.015)
     zgap = map(x -> x.gap, data["data"])
     foreach((l, c) -> contour!(p, x, y, abs.(zgap); levels=[l], c), levels[[1, 3]], colors[[1, 3]])
