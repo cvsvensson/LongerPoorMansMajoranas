@@ -111,7 +111,7 @@ function perturbative_hamiltonian2(a, M; Δ, ε, δϕ, t, θ, Ez)
     t_in = t
     t, tso = theta_to_ts(θ, t_in)
     N = length(a)
-    coeffs = stack(perturbative_coeffs(n; Δ, ε, θ, δϕ, t = t_in) for n in 1:N-1)
+    coeffs = stack(perturbative_coeffs(n; Δ, ε, θ, δϕ, t=t_in) for n in 1:N-1)
     Δ_aa, Δ_bb, Δ_ab, Δ_ba, t_aa, t_ab, t_ba, t_bb = collect(eachrow(coeffs))
     perts = [zeroth_order_perturbative_hamiltonian(a; Δ, ε, Ez),
         first_order_perturbative_hamiltonian(a; Δ_aa, t_aa),
@@ -127,6 +127,15 @@ function first_order_perturbative_hamiltonian(a; t_aa, Δ_aa)
     sum(a[n]'a[n+1] * t_aa[n] + Δ_aa[n] * a[n] * a[n+1] for n in 1:N-1) + hc
 end
 
+function second_order_coeffs(n; Δ_ba, Δ_ab, t_ba, t_ab, Ez, ε, Δ)
+    E1 = Ez + sqrt(Δ[n]^2 + ε[n]^2)
+    E2 = Ez + sqrt(Δ[n+1]^2 + ε[n+1]^2)
+    ε_ba = (Δ_ba[n]' * Δ_ba[n] - t_ba[n]' * t_ba[n]) / E1
+    ε_ab = (Δ_ab[n]' * Δ_ab[n] - t_ab[n]' * t_ab[n]) / E2
+    t_nn = (-Δ_ab[n]' * Δ_ba[n+1] - t_ab[n] * t_ba[n+1]) / E2
+    Δ_nn = (Δ_ba[n+1]' * t_ab[n] + t_ba[n+1]' * Δ_ab[n]') / E2
+    (; E1, E2, ε_ba, ε_ab, t_nn, Δ_nn)
+end
 function second_order_perturbative_hamiltonian(a; Δ_ba, Δ_ab, t_ba, t_ab, Ez, ε, Δ)
     N = length(a)
     E = [Ez + sqrt(Δ[n]^2 + ε[n]^2) for n in 1:N]

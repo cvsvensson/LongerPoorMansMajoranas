@@ -2,7 +2,7 @@
 
 julia_version = "1.10.2"
 manifest_format = "2.0"
-project_hash = "4c61e13e0b6e56973df5f867a33f3cc16aa285ee"
+project_hash = "9d97b1d7fe807539c0deb1b19a65c2912ac2aa2a"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "016833eb52ba2d6bea9fcb50ca295980e728ee24"
@@ -2304,11 +2304,9 @@ version = "2.9.4"
 
 [[deps.QuantumDots]]
 deps = ["AbstractDifferentiation", "AxisKeys", "BlockDiagonals", "Crayons", "Dictionaries", "LinearAlgebra", "LinearMaps", "Reexport", "SciMLBase", "SkewLinearAlgebra", "SparseArrays", "SplitApplyCombine", "StaticArrays"]
-git-tree-sha1 = "64a4e1c78a42302cdf8d42826d0539408ed958a7"
-repo-rev = "main"
-repo-url = "https://github.com/cvsvensson/QuantumDots.jl"
+path = "C:\\Users\\vi2823sv\\.julia\\dev\\QuantumDots"
 uuid = "312194fd-fec5-4b07-ba1c-a40d7013a56a"
-version = "0.8.13"
+version = "0.8.12"
 
     [deps.QuantumDots.extensions]
     QuantumDotsSymbolicsExt = "Symbolics"
@@ -2435,6 +2433,24 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "6ed52fdd3382cf21947b15e8870ac0ddbff736da"
 uuid = "f50d1b31-88e8-58de-be2c-1cc44531875f"
 version = "0.4.0+0"
+
+[[deps.Roots]]
+deps = ["Accessors", "ChainRulesCore", "CommonSolve", "Printf"]
+git-tree-sha1 = "1ab580704784260ee5f45bffac810b152922747b"
+uuid = "f2b01f46-fcfa-551c-844a-d8ac1e96c665"
+version = "2.1.5"
+
+    [deps.Roots.extensions]
+    RootsForwardDiffExt = "ForwardDiff"
+    RootsIntervalRootFindingExt = "IntervalRootFinding"
+    RootsSymPyExt = "SymPy"
+    RootsSymPyPythonCallExt = "SymPyPythonCall"
+
+    [deps.Roots.weakdeps]
+    ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+    IntervalRootFinding = "d2bf35a9-74e0-55ec-b149-d360ff49b807"
+    SymPy = "24249f21-da20-56a4-8eb1-6a02cf4ae2e6"
+    SymPyPythonCall = "bc8888f7-b21e-4b7c-a06a-5d9c9496438c"
 
 [[deps.RoundingEmulator]]
 git-tree-sha1 = "40b9edad2e5287e05bd413a38f61a8ff55b9557b"
