@@ -20,6 +20,8 @@ function math2Expr(expr::MathLink.WExpr)
         return Expr(:call, :sqrt, map(math2Expr, expr.args)...)
     elseif expr.head.name == "nc"
         return Expr(:call, :*, map(math2Expr, expr.args)...)
+    elseif expr.head.name == "List"
+        return Expr(:call, :(Base.vect), map(math2Expr, expr.args)...)
     elseif expr.head.name == "a"
         a = Expr(:ref, :(a), map(math2Expr, expr.args[2:end])...)
         if first(expr.args) == 0
@@ -27,7 +29,7 @@ function math2Expr(expr::MathLink.WExpr)
         else
             return a
         end
-    elseif expr.head.name in ("μ", "ϕ", "ϵ")
+    elseif expr.head.name in ("μ", "ϕ", "ϵ", "Δ")
         return Expr(:ref, Symbol(expr.head.name), map(math2Expr, expr.args)...)
         # elseif expr.head.name == "E"
         #     return Expr(:call, :exp, map(math2Expr, expr.args)...)
@@ -55,3 +57,5 @@ firstorder_hopping_JUexp = math2Expr(firstorder_hopping_Wexp) |> clipboard
 secondorder_N2_nonint_JUexp = math2Expr(secondorder_N2_nonint_Wexp) |> clipboard
 secondorder_N3_nonint_JUexp = math2Expr(secondorder_N3_nonint_Wexp) |> clipboard
 firstorder_int_JUexp = math2Expr(firstorder_int_Wexp) |> clipboard
+
+math2Expr(subs) |> clipboard
