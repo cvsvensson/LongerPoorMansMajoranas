@@ -99,7 +99,7 @@ subs_term = @RuntimeGeneratedFunction(:(function zerothorder(n, Δ, ϵ, t, tso, 
     $subs_JUexp
 end))
 function perturbative_coeffs(n; Δ, ε, δϕ, θ, t)
-    ϕ = pushfirst!(cumsum(δϕ), 0)
+    ϕ = pushfirst!(cumsum(δϕ), zero(eltype(δϕ)))
     t, tso = theta_to_ts(θ, t)
     subs_term(n, Δ, ε, t, tso, ϕ)
 end

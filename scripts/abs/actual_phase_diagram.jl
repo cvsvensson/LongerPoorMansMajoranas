@@ -64,22 +64,22 @@ function topoQ(; ε, t, θ, Δ, Ez, δϕ)
     # coeffs = stack(LongerPoorMansMajoranas.perturbative_coeffs(n; Δ, ε, θ, δϕ, t) for n in 1:2)
     # Δ_aa, Δ_bb, Δ_ab, Δ_ba, t_aa, t_ab, t_ba, t_bb = collect(eachrow(coeffs))
     # (; E1, E2, ε_ba, ε_ab, t_nn, Δ_nn) = LongerPoorMansMajoranas.second_order_coeffs(1; Δ_ba, Δ_ab, t_ba, t_ab, Ez, ε, Δ)
-    Δ_aa, Δ_bb, Δ_ab, Δ_ba, t_aa, t_ab, t_ba, t_bb = LongerPoorMansMajoranas.perturbative_coeffs(1; ε, t, θ, Δ, δϕ)
-    (; E1, E2, ε_ba, ε_ab, t_nn, Δ_nn) = LongerPoorMansMajoranas.second_order_coeffs(1; Δ_ba=[Δ_ba, Δ_ba], Δ_ab=[Δ_ab, Δ_ab], t_ba=t_ba * [1, 1], t_ab=t_ab * [1, 1], Ez, ε, Δ)
-    t1 = t_aa
-    t2 = t_nn
-    Δ1 = Δ_aa
-    Δ2 = Δ_nn
-    topoQ(real(ε_ba + ε_ab), (t1, t2), (Δ1, Δ2))
+    (; ε, t1, t2, Δ1, Δ2) = effective_coeffs(; ε, t, θ, Δ, Ez, δϕ)
+    topoQ(ε, (t1, t2), (Δ1, Δ2))
 end
-function energy_gap(; ε, t, θ, Δ, Ez, δϕ, maxtime=0.0001)
+function effective_coeffs(; ε, t, θ, Δ, Ez, δϕ)
     Δ_aa, Δ_bb, Δ_ab, Δ_ba, t_aa, t_ab, t_ba, t_bb = LongerPoorMansMajoranas.perturbative_coeffs(1; ε, t, θ, Δ, δϕ)
-    (; E1, E2, ε_ba, ε_ab, t_nn, Δ_nn) = LongerPoorMansMajoranas.second_order_coeffs(1; Δ_ba=[Δ_ba, Δ_ba], Δ_ab=[Δ_ab, Δ_ab], t_ba=t_ba * [1, 1], t_ab=t_ab * [1, 1], Ez, ε, Δ)
-    t1 = t_aa
-    t2 = t_nn
-    Δ1 = Δ_aa
-    Δ2 = Δ_nn
-    energy_gap(ε_ba + ε_ab, (t1, t2), (Δ1, Δ2); maxtime)
+    println(Δ_aa)
+    (; E1, E2, ε_ba, ε_ab, t_nn, Δ_nn) = LongerPoorMansMajoranas.second_order_coeffs(1; Δ_ba=Δ_ba * [1, 1], Δ_ab=Δ_ab * [1, 1], t_ba=t_ba * [1, 1], t_ab=t_ab * [1, 1], Ez, ε, Δ)
+    (; ε=real(ε_ba + ε_ab), t1=t_aa,
+        t2=t_nn,
+        Δ1=Δ_aa,
+        Δ2=Δ_nn)
+end
+
+function energy_gap(; ε, t, θ, Δ, Ez, δϕ, maxtime=0.0001)
+    (; ε, t1, t2, Δ1, Δ2) = effective_coeffs(; ε, t, θ, Δ, Ez, δϕ)
+    energy_gap(ε, (t1, t2), (Δ1, Δ2); maxtime)
 end
 topoQ(; ε=[0, 0, 0], δϕ=[0, 0, 0], fixedparams...)
 ##
@@ -92,3 +92,51 @@ heatmap(ϵs, δϕs, data', clims=(0, 0.2), c=:viridis, xlabel="ε", ylabel="δϕ
 data = [topoQ(; ε=eps * [1, 1, 1], δϕ=δϕ * [1, 1], fixedparams...) for eps in ϵs, δϕ in δϕs]
 heatmap(δϕs, ϵs, data, clims=(-1, 1), c=:redsblues, xlabel="δϕ", ylabel="ε", title="Topological invariant")
 ##
+
+using Symbolics
+@variables k t::Complex Δ::Complex Ez::Real θ::Real t1::Complex t2::Complex Δ1::Complex Δ2::Complex ε::Real δϕ::Real
+
+coeffs = effective_coeffs(; ε=[1, 1, 1], fixedparams..., δϕ=δϕ * [1, 1])
+
+
+##
+f = plot()
+for s in [:t1, :t2, :Δ1, :Δ2]
+    x, y = eachrow(map(x -> x.val, stack(reim.([substitute(coeffs[s], δϕ => x) for x in range(0, sqrt(pi), 20) .^ 2]))))
+    scatter!(f, x, y, aspectratio=1, label=string(s))
+end
+f
+##
+f = plot()
+for s in [:t1, :Δ1, :t2, :Δ2]
+    ϕs = range(0, pi, 20)
+    D = Differential(δϕ)
+    # expression = expand_derivatives(D(coeffs[s]))
+    expression = expand_derivatives(angle(D(coeffs[s]))) |> simplify
+    println(expression)
+    # a = map(x -> x.val, (angle.([substitute(expression, δϕ => x) for x in ϕs])))
+    a = map(x -> x.val + 0.1rand(), (([substitute(expression, δϕ => x) for x in ϕs])))
+    plot!(f, ϕs, a, markers=true, label=string(s))
+end
+f
+
+##
+
+expression = effective_coeffs(; ε=ε * [1, 1, 1], Ez, θ=parameter(θ, :diff), t=t, Δ=[1, 1, 1], δϕ=δϕ * [1, 1]) |> simplify
+D = Differential(δϕ)
+for s in [:t1, :Δ1]#, :t2, :Δ2]
+    expression2 = expand_derivatives(D(expression[s])) |> simplify
+    expression3 = expand_derivatives(D(angle(expression2))) |> simplify
+    println("Derivative for $s:", expression3)
+end
+##
+for s in [:t1, :Δ1]#, :t2, :Δ2]
+    expression2 = expand_derivatives(D(expression[s])) |> simplify
+    Symbolics.coeff(expression2, cos(δϕ))
+    # expression3 = expand_derivatives(D(angle(expression2))) |> simplify
+    println("Derivative for $s:", expression3)
+end
+
+##
+nn, dd = Symbolics.arguments(Symbolics.value(real(expression2)))
+Symbolics.coeff(simplify(nn), cos(δϕ))
