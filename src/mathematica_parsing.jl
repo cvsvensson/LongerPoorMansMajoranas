@@ -1,10 +1,7 @@
 using MathLink
 #modified from https://github.com/AmplitudeGravity/usingMathLink/
 function math2Expr(expr::MathLink.WExpr)
-    # println("expr", expr)
     if expr.head.name == "Times"
-        # println("args", expr.args)
-        # println("math2expr(args)", map(math2Expr, expr.args))
         return Expr(:call, :*, map(math2Expr, expr.args)...)
     elseif expr.head.name == "Plus"
         return Expr(:call, :+, map(math2Expr, expr.args)...)
@@ -31,10 +28,6 @@ function math2Expr(expr::MathLink.WExpr)
         end
     elseif expr.head.name in ("μ", "ϕ", "ϵ", "Δ")
         return Expr(:ref, Symbol(expr.head.name), map(math2Expr, expr.args)...)
-        # elseif expr.head.name == "E"
-        #     return Expr(:call, :exp, map(math2Expr, expr.args)...)
-        # elseif expr.head == "E"
-        #     return Expr(:ref, ℯ)
     else
         return Expr(:call, Symbol(expr.head.name), map(math2Expr, expr.args)...)
     end
@@ -56,6 +49,7 @@ zerothorder_JUexp = math2Expr(zerothorder_Wexp)
 firstorder_hopping_JUexp = math2Expr(firstorder_hopping_Wexp) |> clipboard
 secondorder_N2_nonint_JUexp = math2Expr(secondorder_N2_nonint_Wexp) |> clipboard
 secondorder_N3_nonint_JUexp = math2Expr(secondorder_N3_nonint_Wexp) |> clipboard
-firstorder_int_JUexp = math2Expr(firstorder_int_Wexp) |> clipboard
+#firstorder_int_JUexp = math2Expr(firstorder_int_Wexp) |> clipboard
 
 math2Expr(subs) |> clipboard
+math2Expr(subs_homogeneous_Wexp) |> clipboard
