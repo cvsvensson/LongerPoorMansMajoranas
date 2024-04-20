@@ -149,8 +149,7 @@ function second_order_perturbative_hamiltonian(a; Δ_ba, Δ_ab, t_ba, t_ab, Ez, 
 end
 perturbative_hamiltonian_old(a, 2; Δ=1, ε=[1, 2, 3], δϕ=1:2, t=0.5, θ=2.7, Ez=3) -
 perturbative_hamiltonian(a, 2; Δ=[1, 1, 1], ε=[1, 2, 3], δϕ=1:2, t=0.5, θ=2.7, Ez=3) |> norm
-norm(perturbative_hamiltonian_old(a, 2; Δ=1, ε=[1, 1, 1], δϕ=[1, 1], t=0.5, θ=2.7, Ez=3)) -
-norm(perturbative_hamiltonian_homogeneous(a, 2; Δ=1, ε=1, δϕ=1, t=0.5, θ=2.7, Ez=3))
+
 ##
 ##subs
 subs_homogeneous = @RuntimeGeneratedFunction(:(function subs_homogeneous_func(Δ, ϵ, t, tso, δϕ)
@@ -201,3 +200,6 @@ function second_order_perturbative_hamiltonian_homogeneous(a; Δ_ba, Δ_ab, t_ba
     end
     return H
 end
+
+norm(perturbative_hamiltonian_old(a, 2; Δ=1, ε=[1, 1, 1], δϕ=[1, 1], t=0.5, θ=2.7, Ez=3)) -
+norm(perturbative_hamiltonian_homogeneous(a, 2; Δ=1, ε=1, δϕ=1, t=0.5, θ=2.7, Ez=3))

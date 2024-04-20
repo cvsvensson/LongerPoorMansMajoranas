@@ -6,11 +6,12 @@ using Symbolics
 using SkewLinearAlgebra
 using Optimization, OptimizationBBO
 using StaticArrays
-
 using GellMannMatrices
 ##
+@variables k t::Real Δ::Real Ez::Real θ::Real t1::Complex t2::Complex Δ1::Complex Δ2::Complex ε::Real δϕ::Real
+##
 paulis = SVector{4}(pushfirst!(map(SMatrix{2,2}, gellmann(2)), I(2)))
-h = bdgH2(k, ε, (t1, t2), (Δ1, Δ2))
+h = bdgH(k, ε, (t1, t2), (Δ1, Δ2))
 [tr(h * σ) for σ in paulis]
 
 ##
@@ -104,8 +105,9 @@ skewH(0, 0.2, (0.5, 0.0), (1, 0))
 ##
 function effective_coeffs(; ε, t, θ, Δ, Ez, δϕ)
     Δ_aa, Δ_bb, Δ_ab, Δ_ba, t_aa, t_ab, t_ba, t_bb = LongerPoorMansMajoranas.perturbative_coeffs_homogeneous(; ε, t, θ, Δ, δϕ)
+    ε0 = Ez - sqrt(Δ^2 + ε^2)
     (; E, ε_ba, ε_ab, t_nn, Δ_nn) = LongerPoorMansMajoranas.second_order_coeffs_homogeneous(; Δ_ba, Δ_ab, t_ba, t_ab, Ez, ε, Δ)
-    (; ε=real(ε_ba + ε_ab), t1=t_aa, t2=t_nn, Δ1=-conj(Δ_aa), Δ2=Δ_nn)
+    (; ε=real(ε_ba + ε_ab) + ε0, t1=t_aa, t2=t_nn, Δ1=-conj(Δ_aa), Δ2=Δ_nn)
 end
 function topoQ(; ε, t, θ, Δ, Ez, δϕ)
     (; ε, t1, t2, Δ1, Δ2) = effective_coeffs(; ε, t, θ, Δ, Ez, δϕ)
@@ -120,7 +122,7 @@ end
 topoQ(; ε=1, δϕ=1, fixedparams...)
 ##
 fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), Δ=1, Ez=3)
-ϵs = fixedparams.Ez .+ 3 .* range(-1, 1, length=50)
+ϵs = fixedparams.Ez .+ .4 .* range(-1, 1, length=50)
 δϕs = range(0, pi, length=51)
 dataE = [energy_gap(; ε, δϕ, fixedparams...) for ε in ϵs, δϕ in δϕs]
 dataQ = [topoQ(; ε, δϕ, fixedparams...) for ε in ϵs, δϕ in δϕs]
@@ -149,8 +151,6 @@ p4 = heatmap(ϵs, δϕs, map(LDbdgmax, data_f)')
 plot(p1, p2, p3, p4, layout=(2, 2), size=(800, 500))
 ##
 
-using Symbolics
-@variables k t::Real Δ::Real Ez::Real θ::Real t1::Complex t2::Complex Δ1::Complex Δ2::Complex ε::Real δϕ::Real
 
 ##
 
