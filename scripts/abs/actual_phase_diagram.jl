@@ -13,7 +13,12 @@ using GellMannMatrices
 paulis = SVector{4}(pushfirst!(map(SMatrix{2,2}, gellmann(2)), I(2)))
 h = bdgH(k, ε, (t1, t2), (Δ1, Δ2))
 [tr(h * σ) for σ in paulis]
+h0 = substitute.(h, k => 0)
+hpi = substitute.(h, k => pi)
+[tr(h0 * σ) for σ in paulis]
+[tr(hpi * σ) for σ in paulis]
 
+substitute.(skewH(k, ε, (t1, t2), (Δ1, Δ2); check=false), k => 0)
 ##
 function getHs(k, ε, (t1, t2), (Δ1, Δ2))
     s1, c1 = sincos(k)
@@ -46,9 +51,10 @@ end
 #bdgH(k, ε, (t1, t2), (Δ1, Δ2); full=false, kwargs...) = (m = BdGMatrix(hoppingH(k, ε, (t1, t2)), pairingH(k, (Δ1, Δ2)); kwargs...); full ? m : m[2:3, 2:3])
 skewH(k, ε, (t1, t2), (Δ1, Δ2); kwargs...) = QuantumDots.bdg_to_skew(bdgH(k, ε, (t1, t2), (Δ1, Δ2)); kwargs...)
 function topoQ(ε, (t1, t2), (Δ1, Δ2); kwargs...)
-    pf1 = pfaffian(skewH(0, ε, (t1, t2), (Δ1, Δ2); kwargs...))
-    pf2 = pfaffian(skewH(pi, ε, (t1, t2), (Δ1, Δ2); kwargs...))
-    sign(pf1 * pf2)
+    # pf1 = pfaffian(skewH(0, ε, (t1, t2), (Δ1, Δ2); kwargs...))
+    # pf2 = pfaffian(skewH(pi, ε, (t1, t2), (Δ1, Δ2); kwargs...))
+    # sign(pf1 * pf2)
+    sign((2real(t1 + t2) + ε) * (2real(-t1 + t2) + ε))
 end
 sqrt(real(tr(bdgH(k, ε, (t1, t2), (Δ1, Δ2))^2)))
 function energy_gap(ε, (t1, t2), (Δ1, Δ2); nk=1000)
@@ -122,18 +128,24 @@ end
 topoQ(; ε=1, δϕ=1, fixedparams...)
 ##
 fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), Δ=1, Ez=3)
-ϵs = fixedparams.Ez .+ .4 .* range(-1, 1, length=50)
-δϕs = range(0, pi, length=51)
+ϵs = fixedparams.Ez - 0.1 .+ 0.4 .* range(-1, 1, length=150)
+δϕs = range(0, pi, length=151)
 dataE = [energy_gap(; ε, δϕ, fixedparams...) for ε in ϵs, δϕ in δϕs]
 dataQ = [topoQ(; ε, δϕ, fixedparams...) for ε in ϵs, δϕ in δϕs]
-p1 = heatmap(ϵs, δϕs, dataE', colorbar_scale=:log10, c=:viridis, xlabel="ε", ylabel="δϕ", title="energy gap")
+p1 = heatmap(ϵs, δϕs, dataE', colorbar_scale=:log10, c=:viridis, xlabel="ε", ylabel="δϕ", title="\"energy gap\"")
 p2 = heatmap(ϵs, δϕs, dataQ', clims=(-1, 1), c=:redsblues, xlabel="ε", ylabel="δϕ", title="Topological invariant")
 plot(p1, p2)
 ##
-a = FermionBdGBasis(1:10)
-c = FermionBdGBasis(1:10, (:↑, :↓))
+a = FermionBdGBasis(1:20)
+c = FermionBdGBasis(1:20, (:↑, :↓))
 f, f!, cache = hamfunc(Hδϕ_Hε(), c, merge(fixedparams, (; U=0, V=0)))
-data_p = [(
+data_p1 = [(
+    begin
+        H = LongerPoorMansMajoranas.perturbative_hamiltonian_homogeneous(a, 1; ε, δϕ, fixedparams...)
+        fullsolve(H, a)
+    end
+) for ε in ϵs, δϕ in δϕs]
+data_p2 = [(
     begin
         H = LongerPoorMansMajoranas.perturbative_hamiltonian_homogeneous(a, 2; ε, δϕ, fixedparams...)
         fullsolve(H, a)
@@ -146,12 +158,18 @@ data_f = [(
     end
 ) for ε in ϵs, δϕ in δϕs]
 ##
-p3 = heatmap(ϵs, δϕs, map(LDbdgmax, data_p)')
-p4 = heatmap(ϵs, δϕs, map(LDbdgmax, data_f)')
-plot(p1, p2, p3, p4, layout=(2, 2), size=(800, 500))
+p3 = heatmap(ϵs, δϕs, map(LDbdg, data_p2)', c=:viridis, xlabel="ε", ylabel="δϕ", title="LD, 2nd order, 20 sites")
+p4 = heatmap(ϵs, δϕs, map(LDbdg, data_f)', c=:viridis, xlabel="ε", ylabel="δϕ", title="LD, full model, 20 sites")
+p1234 = plot(p1, p2, p3, p4, layout=(2, 2), size=(800, 500))
 ##
-
-
+savefig(p1234, "phase_diagrams_perturbative_vs_full.png")
+##
+heatmap([(
+        begin
+            (; ε, t1, t2, Δ1, Δ2) = effective_coeffs(; fixedparams..., ε, δϕ)
+            real(t1 - Δ1)
+        end
+    ) for ε in ϵs, δϕ in δϕs]', c=:redsblues, clims=0.01 .* (-1, 1))
 ##
 
 effective_coeffs(; ε, fixedparams..., δϕ)

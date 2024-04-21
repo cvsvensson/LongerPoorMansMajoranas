@@ -281,17 +281,19 @@ function get_ranges(::Aϕ_Rε, N)
 end
 default_exps() = collect(range(0.1, 3, length=5))
 
-function SciMLBase.solve(prob::OptProb, alg::BestOf; minexcgap, initials=get_initials(prob), exps=default_exps(), kwargs...)
+function SciMLBase.solve(prob::OptProb, alg::BestOf; minexcgap, initials=get_initials(prob), ranges=get_ranges(prob), exps=default_exps(), kwargs...)
     f, fs = opt_func(prob, alg)
-    ranges = get_ranges(prob)
-    res = map(alg -> solve((f, fs), alg; minexcgap, ranges, initials, exps, kwargs...), alg.optimizers)
-    res = filter(x -> x.optsol.excgap >= minexcgap && abs(x.optsol.gap) < 2 * 10.0^(-last(exps)), res)
+    _res = map(alg -> solve((f, fs), alg; minexcgap, ranges, initials, exps, kwargs...), alg.optimizers)
+    res = filter(x -> x.optsol.excgap >= minexcgap && abs(x.optsol.gap) < 2 * 10.0^(-last(exps)), _res)
     res = sort(res, by=x -> prob.target(x.optsol))
+    if length(res) == 0
+        @warn "No valid solutions found"
+        res = sort(_res, by=x -> prob.target(x.optsol))
+    end
     return merge(res[1], (; all_ss=res))
 end
-function SciMLBase.solve(prob::OptProb, alg; initials=get_initials(prob), kwargs...)
+function SciMLBase.solve(prob::OptProb, alg; initials=get_initials(prob), ranges=get_ranges(prob), kwargs...)
     f, fs = opt_func(prob, alg)
-    ranges = get_ranges(prob)
     solve((f, fs), alg; initials, ranges, kwargs...)
 end
 function SciMLBase.solve((f, fs), alg; MaxTime=5, minexcgap=1 / 4, exps=default_exps(), maxiters=1000, initials, final_NM=false, ranges, kwargs...)
