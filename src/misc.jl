@@ -158,13 +158,12 @@ end
 excgap(odd, even) = min(odd[2] - odd[1], even[2] - even[1])
 excgap(sol) = excgap(sol.energies...)
 
-
-LD(sol) = sum(abs, sol.reduced.cells) #maximum(sol.reduced.cells)#
+LD(sol, p=2) = norm(sol.reduced.cells, p) #maximum(sol.reduced.cells)#
 LDmax(sol) = maximum(sol.reduced.cells)
-LDf(sol) = sum(abs, sol.reduced.fermions)
+LDf(sol, p=2) = norm(sol.reduced.fermions, p)
 LDfmax(sol) = maximum(sol.reduced.fermions)
 LDbdgmax(sol) = maximum(sol.reduced.cells_bdg)
-LDbdg(sol) = sum(abs, sol.reduced.cells_bdg)
+LDbdg(sol, p=2) = norm(sol.reduced.cells_bdg, p)
 MP(sol) = 1 - (abs(sol.mps.left.mp) + abs(sol.mps.right.mp)) / 2
 MPI(sol) = 1 - minimum(abs ∘ (x -> x.mp), sol.mps.singles)
 MPI2(sol) = 1 - mean(abs ∘ (x -> x.mp), sol.mps.singles)
