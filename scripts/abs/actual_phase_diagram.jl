@@ -17,7 +17,17 @@ h0 = substitute.(h, k => 0)
 hpi = substitute.(h, k => pi)
 [tr(h0 * σ) for σ in paulis]
 [tr(hpi * σ) for σ in paulis]
+##
+function LinearAlgebra.eigvals(m::SMatrix{2,2,Complex{Num},4})
+    t = tr(m) |> simplify
+    d = det(m) |> simplify
+    [(t + sqrt(real(t^2 - 4d))) / 2 |> simplify,
+        (t - sqrt(real(t^2 - 4d))) / 2 |> simplify]
 
+    t^2 == t^2 - 4d
+end
+bdgH(k, ε, (t * exp(1im * δϕ), 0), (Δ, 0)) |> eigvals
+##
 substitute.(skewH(k, ε, (t1, t2), (Δ1, Δ2); check=false), k => 0)
 ##
 function getHs(k, ε, (t1, t2), (Δ1, Δ2))
@@ -65,13 +75,16 @@ function energy_gap(ε, (t1, t2), (Δ1, Δ2); nk=1000)
     # prob = OptimizationProblem(f, [0.0]; lb=-pi, ub=pi)
     # sol = solve(prob, BBO_adaptive_de_rand_1_bin_radiuslimited(); maxtime)
     # f(k) = sqrt(real(tr(bdgH(k, ε, (t1, t2), (Δ1, Δ2))^2)))
-    function f(k)
-        s1, c1 = sincos(k)
-        s2, c2 = sincos(2k)
-        # sqrt((-0.5ε - cos(2k)*real(t2) - cos(k)*real(t1) - sin(k)*imag(t1) - imag(t2)*sin(2k))^2 + ((1//2)*ε + cos(2k)*real(t2) + cos(k)*real(t1) - sin(k)*imag(t1) - imag(t2)*sin(2k))^2 + 2((-sin(k)*imag(Δ1) - imag(Δ2)*sin(2k))^2) - 2(-sin(k)*real(Δ1) - real(Δ2)*sin(2k))*(sin(k)*real(Δ1) + real(Δ2)*sin(2k)))
 
-        sqrt((-0.5ε - c2 * real(t2) - c1 * real(t1) - s1 * imag(t1) - imag(t2) * s2)^2 + ((1 // 2) * ε + c2 * real(t2) + c1 * real(t1) - s1 * imag(t1) - imag(t2) * s2)^2 + 2((-s1 * imag(Δ1) - imag(Δ2) * s2)^2) - 2(-s1 * real(Δ1) - real(Δ2) * s2) * (s1 * real(Δ1) + real(Δ2) * s2))
-    end
+    # function f(k)
+    #     s1, c1 = sincos(k)
+    #     s2, c2 = sincos(2k)
+    #     # sqrt((-0.5ε - cos(2k)*real(t2) - cos(k)*real(t1) - sin(k)*imag(t1) - imag(t2)*sin(2k))^2 + ((1//2)*ε + cos(2k)*real(t2) + cos(k)*real(t1) - sin(k)*imag(t1) - imag(t2)*sin(2k))^2 + 2((-sin(k)*imag(Δ1) - imag(Δ2)*sin(2k))^2) - 2(-sin(k)*real(Δ1) - real(Δ2)*sin(2k))*(sin(k)*real(Δ1) + real(Δ2)*sin(2k)))
+
+    #     sqrt((-0.5ε - c2 * real(t2) - c1 * real(t1) - s1 * imag(t1) - imag(t2) * s2)^2 + ((1 // 2) * ε + c2 * real(t2) + c1 * real(t1) - s1 * imag(t1) - imag(t2) * s2)^2 + 2((-s1 * imag(Δ1) - imag(Δ2) * s2)^2) - 2(-s1 * real(Δ1) - real(Δ2) * s2) * (s1 * real(Δ1) + real(Δ2) * s2))
+    # end
+    # f(k) = abs(det(bdgH(only(k), ε, (t1, t2), (Δ1, Δ2))))
+    f(k) = abs(eigvals(bdgH(only(k), ε, (t1, t2), (Δ1, Δ2)))[1])
     ks = range(-pi, pi, nk)
     Es = [f(k) for k in ks]
     Emin, k = findmin(Es)
@@ -85,22 +98,36 @@ skewH(pi, 0, (1 + 1im, 0), (1, 2); check=false)
 [pfaffian(skewH(k, 0.2, (1, 0), (1, 0))) for k in (0, pi)]
 
 ##
-
-ϵs = range(-4, 4, length=50)
-ts = range(0, 2, length=51)
-ks = range(-pi, pi, length=100)
-data = [topoQ(eps, (t, 0), (1, 0); check=false) for eps in ϵs, t in ts]
-data2 = [energy_gap(eps, (t, 0), (1, 0)) for eps in ϵs, t in ts];
-p1 = heatmap(ts, ϵs, data, clims=(-1, 1), c=:redsblues, xlabel="t", ylabel="ε", title="Topological invariant")
-p2 = heatmap(ts, ϵs, data2, clims=(0, 1), c=:viridis, xlabel="t", ylabel="ε", title="Energy gap")
-plot(p1, p2)
+let ϕ = 0.5 * pi / 2
+    ϵs = range(-4, 4, length=50)
+    ts = range(0, 4, length=101)
+    #ks = range(-pi, pi, length=100)
+    data = [topoQ(eps, (exp(1im * ϕ) * t, 0), (1, 0); check=false) for eps in ϵs, t in ts]
+    data2 = [energy_gap(eps, (exp(1im * ϕ) * t, 0), (1, 0)) for eps in ϵs, t in ts]
+    p1 = heatmap(ts, ϵs, data, clims=(-1, 1), c=:redsblues, xlabel="t", ylabel="ε", title="Topological invariant")
+    p2 = heatmap(ts, ϵs, data2, clims=(0, 1), c=:viridis, xlabel="t", ylabel="ε", title="Energy gap")
+    plot(p1, p2) |> display
+end
+##
+let t = 1, ϕ = 0.9 * pi / 2
+    ϵs = range(-4, 4, length=100)
+    Δs = range(-2, 2, length=101)
+    #ks = range(-pi, pi, length=100)
+    data = [topoQ(eps, (exp(1im * ϕ) * t, 0), (Δ, 0); check=false) for eps in ϵs, Δ in Δs]
+    data2 = [energy_gap(eps, (exp(1im * ϕ) * t, 0), (Δ, 0)) for eps in ϵs, Δ in Δs]
+    p1 = heatmap(ϵs, Δs, data', clims=(-1, 1), c=:redsblues, xlabel="ε", ylabel="Δ", title="Topological invariant")
+    p2 = heatmap(ϵs, Δs, data2', clims=(0, 1), c=:viridis, xlabel="ε", ylabel="Δ", title="Determinant")
+    plot(p1, p2) |> display
+end
 ##
 let t = 1
+    ks = range(-pi, pi, length=100)
     energies = [[eigvals(bdgH(k, eps, (1, 0.0), (1.1, 0.0))) for k in ks] for eps in [-2t, 0, 2t]]
     plot([plot(ks, stack(es)') for es in energies]...)
 end
 ##
 let t = 1
+    ks = range(-pi, pi, length=100)
     energies = [[eigvals(bdgH(k, eps, (1im, 0.0), (1.1, 0.0))) for k in ks] for eps in [-2t, 0, 2t]]
     plot([plot(ks, stack(es)') for es in energies]...)
 end
@@ -132,12 +159,12 @@ fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), Δ=1, Ez=3)
 δϕs = range(0, pi, length=151)
 dataE = [energy_gap(; ε, δϕ, fixedparams...) for ε in ϵs, δϕ in δϕs]
 dataQ = [topoQ(; ε, δϕ, fixedparams...) for ε in ϵs, δϕ in δϕs]
-p1 = heatmap(ϵs, δϕs, dataE', colorbar_scale=:log10, c=:viridis, xlabel="ε", ylabel="δϕ", title="\"energy gap\"")
+p1 = heatmap(ϵs, δϕs, dataE', colorbar_scale=:log10, c=:viridis, xlabel="ε", ylabel="δϕ", title="Energy gap")
 p2 = heatmap(ϵs, δϕs, dataQ', clims=(-1, 1), c=:redsblues, xlabel="ε", ylabel="δϕ", title="Topological invariant")
 plot(p1, p2)
 ##
-a = FermionBdGBasis(1:20)
-c = FermionBdGBasis(1:20, (:↑, :↓))
+a = FermionBdGBasis(1:10)
+c = FermionBdGBasis(1:10, (:↑, :↓))
 f, f!, cache = hamfunc(Hδϕ_Hε(), c, merge(fixedparams, (; U=0, V=0)))
 data_p1 = [(
     begin
