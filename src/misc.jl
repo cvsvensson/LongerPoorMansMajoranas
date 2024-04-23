@@ -131,10 +131,9 @@ function fullsolve(_H::AbstractMatrix, basis::FermionBdGBasis; reduced=true, tra
     # es, ops = QuantumDots.enforce_ph_symmetry(eigen(H))
     if !QuantumDots.check_ph_symmetry(es, ops; cutoff)
         @warn "particle-hole symmetry not valid?" #$es \n $ops"
-        # p = sortperm(es, by=QuantumDots.energysort)
-        # inds = Iterators.take(eachindex(es), N)
-        # display(sum(abs(es[p[i]] + es[p[QuantumDots.quasiparticle_adjoint_index(i, N)]]) for i in inds))
-        # norm(ops' * ops - I) |> display
+        @debug "particle-hole symmetry not valid?" es ops inds = Iterators.take(eachindex(es), N) p = sortperm(es, by=QuantumDots.energysort)
+        # @debug "$(sum(abs(es[p[i]] + es[p[QuantumDots.quasiparticle_adjoint_index(i, N)]]) for i in inds))"
+        # @debug "$(norm(ops' * ops - I)))"
     end
     qps = map(op -> QuantumDots.QuasiParticle(op, basis), eachcol(ops))
     best_majorana = qps[N]

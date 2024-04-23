@@ -203,3 +203,5 @@ end
 
 norm(perturbative_hamiltonian_old(a, 2; Δ=1, ε=[1, 1, 1], δϕ=[1, 1], t=0.5, θ=2.7, Ez=3)) -
 norm(perturbative_hamiltonian_homogeneous(a, 2; Δ=1, ε=1, δϕ=1, t=0.5, θ=2.7, Ez=3))
+norm(perturbative_hamiltonian(a, 2; Δ=[1, 1, 1], ε=[1, 1, 1], δϕ=[1, 1], t=0.5, θ=2.7, Ez=3)) -
+norm(perturbative_hamiltonian_homogeneous(a, 2; Δ=1, ε=1, δϕ=1, t=0.5, θ=2.7, Ez=3))
