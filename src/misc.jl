@@ -83,8 +83,8 @@ function reduced_similarity(qps::AbstractVector{<:QuantumDots.QuasiParticle})
     cell_positions(n) = [basis.position[cl] for cl in cell_labels(n, basis)]
     cinds(n) = vcat(cell_positions(n), (cell_positions(n) .+ N))
     #cell_matrices = (; even=map(n -> ρeven[cinds(n), cinds(n)], 1:div(N, 2)), odd=map(n -> ρodd[cinds(n), cinds(n)], 1:div(N, 2)))
-    fermions = QuantumDots.Dictionary(labels, [sum(abs, ρeven[[n, n + N], [n, n + N]] - ρodd[[n, n + N], [n, n + N]]) for n in 1:length(labels)])
-    cells_bdg = QuantumDots.Dictionary(1:div(N, 2), [sum(abs, ρeven[cinds(n), cinds(n)] - ρodd[cinds(n), cinds(n)]) for n in 1:div(N, 2)])
+    fermions = QuantumDots.Dictionary(labels, [norm(ρeven[[n, n + N], [n, n + N]] - ρodd[[n, n + N], [n, n + N]]) for n in 1:length(labels)])
+    cells_bdg = QuantumDots.Dictionary(1:div(N, 2), [norm(ρeven[cinds(n), cinds(n)] - ρodd[cinds(n), cinds(n)]) for n in 1:div(N, 2)])
     return (; fermions, cells_bdg)#, cell_matrices)
 end
 

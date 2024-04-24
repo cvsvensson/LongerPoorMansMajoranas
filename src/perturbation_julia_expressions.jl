@@ -123,8 +123,8 @@ end
 function second_order_coeffs(n; Δ_ba, Δ_ab, t_ba, t_ab, Ez, ε, Δ)
     E1 = Ez + sqrt(Δ[n]^2 + ε[n]^2)
     E2 = Ez + sqrt(Δ[n+1]^2 + ε[n+1]^2)
-    ε_ba = (Δ_ba[n]' * Δ_ba[n] - t_ba[n]' * t_ba[n]) / E1
-    ε_ab = (Δ_ab[n]' * Δ_ab[n] - t_ab[n]' * t_ab[n]) / E2
+    ε_ba = real(Δ_ba[n]' * Δ_ba[n] - t_ba[n]' * t_ba[n]) / E1
+    ε_ab = real(Δ_ab[n]' * Δ_ab[n] - t_ab[n]' * t_ab[n]) / E2
     t_nn = (-Δ_ab[n]' * Δ_ba[n+1] - t_ab[n] * t_ba[n+1]) / E2
     Δ_nn = (Δ_ba[n+1]' * t_ab[n] + t_ba[n+1]' * Δ_ab[n]') / E2
     (; E1, E2, ε_ba, ε_ab, t_nn, Δ_nn)

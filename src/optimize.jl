@@ -32,6 +32,18 @@ struct BestOf{OS}
 end
 
 
+struct MultipleSS{A,P}
+    alg::A
+    n::Int
+    penalty::P
+    function MultipleSS(alg::A, n::Int, penalty::P) where {A,P}
+        if n < 1
+            throw(ArgumentError("n must be at least 1"))
+        end
+        new{A,P}(alg, n, penalty)
+    end
+end
+
 cost_function(gap, excgap, reduced::Number; exp, minexcgap) = cost_reduced(reduced) + cost_energy(gap, excgap; exp, minexcgap)
 cost_energy(gap, excgap; minexcgap, exp) = cost_gap(gap, exp) + cost_excgap(excgap, minexcgap, exp)
 cost_excgap(excgap, minexcgap, exp) = ((excgap - minexcgap) < 0 ? 1.0 + 10.0^exp * abs(excgap - minexcgap) : 0.0)
@@ -152,47 +164,25 @@ end
 
 get_cache(c::FermionBasis, ham) = blockdiagonal(ham, c)
 get_cache(c::FermionBdGBasis, ham) = (Matrix(ham))
-# function get_hamfuncs(c, fixedparams, hamfunc)
-# N = div(QuantumDots.nbr_of_fermions(c), 2)
-# Nhalf = div(N + 1, 2)
-# @variables Δ[1:N], εs[1:Nhalf]::Real
-# params = merge(fixedparams, (; Δ=collect(Δ[1:N]), ε=reflect(εs, N)))
-# f, f! = LongerPoorMansMajoranas.build_whamiltonian(c; params...)
-# f2(ps) = f(splatter(ps))
-# f2!(out, ps) = f!(out, splatter(ps))
-# fphase(Δs, εs) = f([Δs..., εs...])
-# fphase(rs, δϕs, ϵs) = fphase((reflect(rs, N) .* exp.(1im .* diffreflect(δϕs, N))), ϵs)
-# fphase(ps) = fphase(decompose(ps)...)
-# fphase!(out, Δs, εs) = f!(out, [Δs..., εs...])
-# fphase!(out, rs, δϕs, ϵs) = fphase!(out, (reflect(rs, N) .* exp.(1im .* diffreflect(δϕs, N))), ϵs)
-# fphase!(out, ps) = fphase!(out, decompose(ps)...)
-# ps = rand(2Nhalf + div(N, 2))
-#     cache = if c isa FermionBasis
-#         blockdiagonal(f2(ps), c)
-#     elseif c isa FermionBdGBasis # Wait for update to QuantumDots
-#         f2(ps) |> Matrix |> BdGMatrix
-#     end
-#     return fphase, fphase!, cache
-# end
 
-@kwdef struct OptProb{F,B,P,T}
+@kwdef struct OptProb{F,B,P,T,PC}
     hamfunc::F
     basis::B
     optparams::P
-    target::T = x -> MPU(x) + LDf(x)
+    target::T
+    param_cost::PC = (x...) -> 0
 end
 
-opt_func(opt::OptProb, ::IPNewton) = opt_func_cons(opt.hamfunc, opt.basis, AutoFiniteDiff(), opt.target)
-opt_func(opt::OptProb, ::Optim.ConjugateGradient) = opt_func(opt.hamfunc, opt.basis, AutoFiniteDiff(), opt.target)
-opt_func(opt::OptProb, ::NelderMead) = opt_func(opt.hamfunc, opt.basis, AutoFiniteDiff(), opt.target)
-opt_func(opt::OptProb, alg) = opt_func(opt.hamfunc, opt.basis, AutoFiniteDiff(), opt.target)
+# opt_func(opt::OptProb, ::IPNewton) = opt_func_cons(opt.hamfunc, opt.basis, AutoFiniteDiff(), opt.target)
+# opt_func(opt::OptProb, ::Optim.ConjugateGradient) = opt_func(opt.hamfunc, opt.basis, AutoFiniteDiff(), opt.target)
+# opt_func(opt::OptProb, ::NelderMead) = opt_func(opt.hamfunc, opt.basis, AutoFiniteDiff(), opt.target)
+# opt_func(opt::OptProb, alg) = opt_func(opt.hamfunc, opt.basis, AutoFiniteDiff(), opt.target)
 
 
-function opt_func_cons(hamfunc, basis, ad=nothing, target=x -> MPU(x) + LDf(x))
+function opt_func_cons(hamfunc, basis, ad, target; param_cost=(x...) -> 0)
     # f0, f!, cache = hamfunc(basis, fixedparams)
-    extra_cost(a, b) = 0.0
     fullsolve2(x) = fullsolve(hamfunc(x), basis)
-    cost(x, p) = target(fullsolve2(x))
+    cost(x, p) = target(fullsolve2(x)) + param_cost(x)
     function cons(res, x, minexcgap)
         sol = fullsolve2(x)
         res[1] = sol.gap
@@ -202,22 +192,6 @@ function opt_func_cons(hamfunc, basis, ad=nothing, target=x -> MPU(x) + LDf(x))
         return OptimizationFunction(cost; cons), fullsolve2
     else
         return OptimizationFunction(cost, ad; cons), fullsolve2
-    end
-end
-function opt_func(hamfunc, basis, ad=nothing, target=x -> MPU(x) + LDf(x))
-    # f0, f!, cache = hamfunc(basis, fixedparams)
-    # target = x -> MPU(x) + LDf(x)
-    extra_cost(a, b) = 0.0
-    f2(x) = fullsolve(hamfunc(x), basis)
-    # f2(x) = fullsolve(f0(x), basis)
-    function f(x, (exp, minexcgap))
-        sol = f2(x)
-        cost_function(sol.gap, sol.excgap, target(sol); exp, minexcgap) + extra_cost(x, exp)
-    end
-    if isnothing(ad)
-        return OptimizationFunction(f), f2
-    else
-        return OptimizationFunction(f, ad), f2
     end
 end
 
@@ -281,9 +255,60 @@ function get_ranges(::Aϕ_Rε, N)
 end
 default_exps() = collect(range(0.1, 3, length=5))
 
+
+function SciMLBase.solve(prob::OptProb, alg::MultipleSS; kwargs...)
+    # sols = []
+    # target = prob.target
+    # basis = prob.basis
+    # hamfunc = prob.basis
+    # newprob = OptProb(hamfunc, basis, prob.optparams, target, param_cost)
+    # fs = x -> fullsolve(hamfunc(x), basis)
+    # function f(x, (exp, minexcgap))
+    #     sol = fs(x)
+    #     cost_function(sol.gap, sol.excgap, target(sol); exp, minexcgap)
+    # end
+
+    newprob = OptProb(prob.hamfunc, prob.basis, prob.optparams, prob.target, prob.param_cost)
+    sol1 = solve(newprob, alg.alg; kwargs...)
+    sols = []
+    push!(sols, sol1)
+    ps = [collect(sol1.sol)]
+    for k in 2:alg.n
+        newprob = OptProb(prob.hamfunc, prob.basis, prob.optparams, prob.target, (x, exp) -> prob.param_cost(x, exp) + alg.penalty(ps, x, exp))
+        sol = solve(newprob, alg.alg; kwargs...)
+        push!(sols, sol)
+        push!(ps, collect(sol.sol))
+    end
+
+    # fs(x) = fullsolve(prob.hamfunc(x), prob.basis)
+    # function f(x, (exp, minexcgap))
+    #     sol = fs(x)
+    #     cost_function(sol.gap, sol.excgap, prob.target(sol); exp, minexcgap) + prob.param_cost(x, exp)
+    # end
+    # of = OptimizationFunction(f, AutoFiniteDiff())
+    # sol1 = _solve(of, alg.alg; initials, ranges, kwargs...)
+    # sols = [sol1]
+    # ps = [collect(sol1.sol)]
+    # for k in 2:n
+    #     # param_cost = (x, exp) -> alg.P(sols, x, exp)
+    #     f2(x, (exp, minexpgap)) = f(x, (exp, minexpgap)) + alg.P(ps, x, exp)
+    #     sol = _solve(OptimizationFunction(f2, AutoFiniteDiff()), alg.alg; kwargs...)
+    #     push!(sols, sol)
+    #     push!(ps, collect(sol.sol))
+    # end
+    return sols
+end
+
 function SciMLBase.solve(prob::OptProb, alg::BestOf; minexcgap, initials=get_initials(prob), ranges=get_ranges(prob), exps=default_exps(), kwargs...)
-    f, fs = opt_func(prob, alg)
-    _res = map(alg -> solve((f, fs), alg; minexcgap, ranges, initials, exps, kwargs...), alg.optimizers)
+    # f, fs = opt_func(prob, alg)
+    fs(x) = fullsolve(prob.hamfunc(x), prob.basis)
+    function f(x, (exp, minexcgap))
+        sol = fs(x)
+        cost_function(sol.gap, sol.excgap, prob.target(sol); exp, minexcgap) + prob.param_cost(x, exp)
+    end
+    of = OptimizationFunction(f, AutoFiniteDiff())
+    _sols = map(alg -> _solve(of, alg; minexcgap, ranges, initials, exps, kwargs...), alg.optimizers)
+    _res = map(sol -> (; sol, optsol=fs(sol)), _sols)
     res = filter(x -> x.optsol.excgap >= minexcgap && abs(x.optsol.gap) < 2 * 10.0^(-last(exps)), _res)
     res = sort(res, by=x -> prob.target(x.optsol))
     if length(res) == 0
@@ -293,10 +318,18 @@ function SciMLBase.solve(prob::OptProb, alg::BestOf; minexcgap, initials=get_ini
     return merge(res[1], (; all_ss=res))
 end
 function SciMLBase.solve(prob::OptProb, alg; initials=get_initials(prob), ranges=get_ranges(prob), kwargs...)
-    f, fs = opt_func(prob, alg)
-    solve((f, fs), alg; initials, ranges, kwargs...)
+    # f, fs = opt_func(prob, alg)
+    fs(x) = fullsolve(prob.hamfunc(x), prob.basis)
+    function f(x, (exp, minexcgap))
+        sol = fs(x)
+        cost_function(sol.gap, sol.excgap, prob.target(sol); exp, minexcgap) + prob.param_cost(x, exp)
+    end
+    of = OptimizationFunction(f, AutoFiniteDiff())
+    sol = _solve(of, alg; initials, ranges, kwargs...)
+    optsol = fs(sol)
+    return (; sol, optsol)
 end
-function SciMLBase.solve((f, fs), alg; MaxTime=5, minexcgap=1 / 4, exps=default_exps(), maxiters=1000, initials, final_NM=false, ranges, kwargs...)
+function _solve(f, alg; MaxTime=5, minexcgap=1 / 4, exps=default_exps(), maxiters=1000, initials, final_NM=false, ranges, kwargs...)
     refinements = length(exps) + final_NM
     maxtime = MaxTime / refinements
     lb = map(first, ranges)
@@ -317,9 +350,10 @@ function SciMLBase.solve((f, fs), alg; MaxTime=5, minexcgap=1 / 4, exps=default_
         prob = OptimizationProblem(f, sol.u, (last(exps), minexcgap);)
         sol = solve(prob, NelderMead(); maxiters, maxtime, kwargs...)
     end
-    optsol = fs(sol)
+    return sol
+    # optsol = fs(sol)
     # params = NamedTuple(zip((:Δ, :δϕ, :ε), decompose(sol)))
-    return (; alg, sol, optsol)
+    # return (; alg, sol, optsol)
 end
 
 function SciMLBase.solve(prob::OptProb, alg::IPNewton; MaxTime=5, minexcgap=1 / 4, maxiters=1000, initials=get_initials(prob), final_NM, exps, kwargs...)

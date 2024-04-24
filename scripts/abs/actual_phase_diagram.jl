@@ -34,7 +34,7 @@ end
     (real(t + s) / 2, real(t - s) / 2)
 end
 ##
-@variables k t::Real Δ::Real Ez::Real θ::Real t1::Complex t2::Complex Δ1::Complex Δ2::Complex ε::Real δϕ::Real
+@variables k t::Real Δ::Real Ez::Real θ::Real t1::Complex t2::Complex Δ1::Complex Δ2::Complex ε::Real δϕ::Real δε::Real
 ##
 const paulis = SVector{4}(pushfirst!(map(SMatrix{2,2}, gellmann(2)), I(2)))
 h = bdgH(k, ε, (t1, t2), (Δ1, Δ2))

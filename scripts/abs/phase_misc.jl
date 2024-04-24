@@ -63,7 +63,7 @@ function find_sweet_spot(N; MaxTime, exps=range(0.1, 3, 5), kwargs...)
     f, f!, cache = hamfunc(Hδϕ_Hε(), c, fixedparams)
     find_sweet_spot((f, f!, cache), c, Hδϕ_Hε(); exps, MaxTime, kwargs...)
 end
-function find_sweet_spot((f, f!, cache), c, optparams=Hδϕ_Hε(); exps, MaxTime, target=MPU, minexcgap=0.0, alg=best_algs()[1], kwargs...)
+function find_sweet_spot((f, f!, cache), c, optparams=Hδϕ_Hε(); exps, MaxTime, target, minexcgap=0.0, alg=best_algs()[1], kwargs...)
     prob = OptProb(; hamfunc=x -> f!(cache, x), basis=c, optparams, target)
     return solve(prob, alg; minexcgap, maxiters=100000, MaxTime, exps, kwargs...)
 end
