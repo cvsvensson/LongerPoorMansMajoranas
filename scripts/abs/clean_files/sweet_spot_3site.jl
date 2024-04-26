@@ -41,14 +41,15 @@ f([1, 1, 1]) - fh([1, 1]) |> norm
 
 exps = range(0.1, 4, 5)
 
-param_cost = (ps, p, exp) -> 10.0^(-exp) * 1 / (10.0^(-exp) + sum(p0 -> norm(p0 .- p)^2, ps))
+param_cost = (ps, p, exp) -> 10.0^(-exp) * 1 / (10.0^(-exp) + sum(p0 -> norm(p0 .- p)^4, ps))
 alg = LongerPoorMansMajoranas.MultipleSS(BestOf(best_algs()[1:end-1]), 2, param_cost)
 _homogeneous_ss = find_sweet_spot((fh, fh!, cacheh), c, Hδϕ_Hε(); exps, MaxTime=1, target, minexcgap=0, alg, initials)
 homogeneous_ss = map(sol -> merge(sol, get_gap_derivatives(fh, c, sol.sol)), _homogeneous_ss)
 # δϕ0 = homogeneous_ss.sol[1]
 
 ##
-ss_selector(sols) = sort(sols, by=x -> x.sol[1])[1]
+# ss_selector(sols) = [1]
+ss_sorter(sols) = sort(sols, by=x -> x.sol[1])
 ##
 ss = ss_selector(homogeneous_ss)
 ε0 = ss.sol[2]
@@ -56,7 +57,7 @@ initials = collect(ss.sol)
 MaxTime = 0.2
 minexcgap = ss.optsol.excgap * 0.5
 data = []
-δε2s = 0.3 .* range(0, 2, length=10)
+δε2s = 0.3 .* range(-1, 2, length=10)
 for δε2 in δε2s
     # alg = BestOf(best_algs()[1:end-1])
     alg = LongerPoorMansMajoranas.MultipleSS(BestOf(best_algs()[1:end-1]), 2, param_cost)
@@ -66,33 +67,37 @@ for δε2 in δε2s
     ranges = [(0.0, 1.0pi), ε0 .+ 1 .* (-1, 1)]
     # println("INITIALS: ", initials)
     sols = solve(prob, alg; minexcgap, maxiters=10000, MaxTime, exps, initials, ranges)
-    sol = ss_selector(sols)
-    initials .= collect(sol.sol)
-    push!(data, merge(sol, get_gap_derivatives(hamfunc, c, sol.sol)))
+    sols = sort(sols, by=x -> x.sol[1])
+    # sol = ss_selector(sols)
+    sols2 = map(sol -> merge(sol, get_gap_derivatives(hamfunc, c, sol.sol)), sols)
+    # initials .= collect(ss_selector(sol).sol)
+    push!(data, sols2)
 end
 ##
-p_LD = plot(δε2s, map(x -> LDbdg(x.optsol), data), markers=true, ylabel="LD", xlabel="δε2", label="Inhomogeneous", ylims=(0, 2))
-scatter!([0], [LDbdg(ss.optsol)], c=:red, label="homogeneous")
-hline!([LDbdg(homogeneous_ss2.optsol)], label="2 site sweet spot", lw=2, ls=:dash);
-##
-p_excgap = plot(δε2s, map(x -> x.optsol.excgap, data), markers=true, ylabel="excgap", xlabel="δε2", label="Inhomogeneous", ylims=(0, 0.3))
-scatter!([0], [ss.optsol.excgap], c=:red, label="homogeneous")
-hline!([homogeneous_ss2.optsol.excgap], ls=:dash, lw=2, label="2 site sweet spot");
-##
-p_gap = plot(δε2s, map(x -> x.optsol.gap, data), markers=true, ylabel="gap", xlabel="δε2", label="Inhomogeneous")
-scatter!([0], [ss.optsol.gap], c=:red, label="homogeneous")
-hline!([homogeneous_ss2.optsol.gap], ls=:dash, lw=2, label="2 site sweet spot");
-##
-p_gap_der = plot(δε2s, map(x -> norm(x.gradient), data), markers=true, ylabel="gap_der", xlabel="δε2", label="Inhomogeneous")
-scatter!([0], [norm(ss.gradient)], c=:red, label="homogeneous")
-hline!([norm(homogeneous_ss2.gradient)], ls=:dash, lw=2, label="2 site sweet spot");
-##
-plot(p_LD, p_excgap, p_gap, p_gap_der)
+let data = map(x -> x[2], data)
+    p_LD = plot(δε2s, map(x -> LDbdg(x.optsol), data), markers=true, ylabel="LD", xlabel="δε2", label="Inhomogeneous", ylims=(0, 2))
+    scatter!([0], [LDbdg(ss.optsol)], c=:red, label="homogeneous")
+    hline!([LDbdg(homogeneous_ss2.optsol)], label="2 site sweet spot", lw=2, ls=:dash)
+    p_excgap = plot(δε2s, map(x -> x.optsol.excgap, data), markers=true, ylabel="excgap", xlabel="δε2", label="Inhomogeneous", ylims=(0, 0.3))
+    scatter!([0], [ss.optsol.excgap], c=:red, label="homogeneous")
+    hline!([homogeneous_ss2.optsol.excgap], ls=:dash, lw=2, label="2 site sweet spot")
+    p_gap = plot(δε2s, map(x -> x.optsol.gap, data), markers=true, ylabel="gap", xlabel="δε2", label="Inhomogeneous")
+    scatter!([0], [ss.optsol.gap], c=:red, label="homogeneous")
+    hline!([homogeneous_ss2.optsol.gap], ls=:dash, lw=2, label="2 site sweet spot")
+    p_gap_der = plot(δε2s, map(x -> norm(x.gradient), data), markers=true, ylabel="gap_der", xlabel="δε2", label="Inhomogeneous", ylims=(0, 1))
+    scatter!([0], [norm(ss.gradient)], c=:red, label="homogeneous")
+    hline!([norm(homogeneous_ss2.gradient)], ls=:dash, lw=2, label="2 site sweet spot")
+
+    p_params = plot(δε2s, stack(map(x -> (x.sol), data))', markers=true, ylabel="params", xlabel="δε2", ylims=(-pi, pi))
+    # scatter!([0], [norm(ss.gradient)], c=:red, label="homogeneous")
+
+    plot(p_LD, p_excgap, p_gap_der, p_gap, p_params, layout=(3, 2), size=(800, 800))
+end
 ##
 savefig("inhomogeneous_sweet_spot_3site.png")
 ##
 for n in [1, 4]
-    let k = n, hamfunc, a, data_p1
+    let k = n, hamfunc, a, data_p1, data = map(x -> x[1], data)
         a = FermionBdGBasis(1:3)
         δε2 = δε2s[k]
         δϕ, ε1 = data[k].sol
@@ -136,8 +141,8 @@ for n in [1, 4]
         dp1 = Dict("ss" => data[k], "data" => data_p1, "N" => 3, "labels" => ("ε1", "δϕ"), "x" => εs, "y" => δϕs)
         p1 = plot_f(d, x -> LDbdg(x), clim_max=1, c=cgrad(:viridis, rev=true), ss_label="3-site sweet spot", legend=false)
         p2 = plot_f(dp1, x -> LDbdg(x), clim_max=1, c=cgrad(:viridis, rev=true), ss_label="3-site sweet spot", legend=:bottomright)
-        p1 = plot_f(d, x -> norm(x.gradient), clim_max=1, c=cgrad(:viridis, rev=true), ss_label="3-site sweet spot", legend=false)
-        p2 = plot_f(dp1, x -> norm(x.gradient), clim_max=1, c=cgrad(:viridis, rev=true), ss_label="3-site sweet spot", legend=:bottomright)
+        # p1 = plot_f(d, x -> norm(x.gradient), clim_max=1, c=cgrad(:viridis, rev=true), ss_label="3-site sweet spot", legend=false)
+        # p2 = plot_f(dp1, x -> norm(x.gradient), clim_max=1, c=cgrad(:viridis, rev=true), ss_label="3-site sweet spot", legend=:bottomright)
         # p1 = plot_f(d, x -> norm(x.gradient[2]) / LDf(x), clim_max=2, c=:redsblues, ss_label="3-site sweet spot", legend=false)
         # p2 = plot_f(dp1, x -> norm(x.gradient[2]) / LDf(x), clim_max=2, c=:redsblues, ss_label="3-site sweet spot", legend=:bottomright)
         # p1 = plot_f(d, x -> x.excgap, clim_max=.25, c=:viridis, ss_label="3-site sweet spot", legend = false)
