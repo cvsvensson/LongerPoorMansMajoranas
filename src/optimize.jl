@@ -161,7 +161,6 @@ function hamfunc_allϕ_ε(c, fixedparams)
 end
 
 
-
 get_cache(c::FermionBasis, ham) = blockdiagonal(ham, c)
 get_cache(c::FermionBdGBasis, ham) = (Matrix(ham))
 
@@ -172,13 +171,6 @@ get_cache(c::FermionBdGBasis, ham) = (Matrix(ham))
     target::T
     param_cost::PC = (x...) -> 0
 end
-
-# opt_func(opt::OptProb, ::IPNewton) = opt_func_cons(opt.hamfunc, opt.basis, AutoFiniteDiff(), opt.target)
-# opt_func(opt::OptProb, ::Optim.ConjugateGradient) = opt_func(opt.hamfunc, opt.basis, AutoFiniteDiff(), opt.target)
-# opt_func(opt::OptProb, ::NelderMead) = opt_func(opt.hamfunc, opt.basis, AutoFiniteDiff(), opt.target)
-# opt_func(opt::OptProb, alg) = opt_func(opt.hamfunc, opt.basis, AutoFiniteDiff(), opt.target)
-
-
 function opt_func_cons(hamfunc, basis, ad, target; param_cost=(x...) -> 0)
     # f0, f!, cache = hamfunc(basis, fixedparams)
     fullsolve2(x) = fullsolve(hamfunc(x), basis)
@@ -257,17 +249,6 @@ default_exps() = collect(range(0.1, 3, length=5))
 
 
 function SciMLBase.solve(prob::OptProb, alg::MultipleSS; kwargs...)
-    # sols = []
-    # target = prob.target
-    # basis = prob.basis
-    # hamfunc = prob.basis
-    # newprob = OptProb(hamfunc, basis, prob.optparams, target, param_cost)
-    # fs = x -> fullsolve(hamfunc(x), basis)
-    # function f(x, (exp, minexcgap))
-    #     sol = fs(x)
-    #     cost_function(sol.gap, sol.excgap, target(sol); exp, minexcgap)
-    # end
-
     newprob = OptProb(prob.hamfunc, prob.basis, prob.optparams, prob.target, prob.param_cost)
     sol1 = solve(newprob, alg.alg; kwargs...)
     sols = []
@@ -279,28 +260,10 @@ function SciMLBase.solve(prob::OptProb, alg::MultipleSS; kwargs...)
         push!(sols, sol)
         push!(ps, collect(sol.sol))
     end
-
-    # fs(x) = fullsolve(prob.hamfunc(x), prob.basis)
-    # function f(x, (exp, minexcgap))
-    #     sol = fs(x)
-    #     cost_function(sol.gap, sol.excgap, prob.target(sol); exp, minexcgap) + prob.param_cost(x, exp)
-    # end
-    # of = OptimizationFunction(f, AutoFiniteDiff())
-    # sol1 = _solve(of, alg.alg; initials, ranges, kwargs...)
-    # sols = [sol1]
-    # ps = [collect(sol1.sol)]
-    # for k in 2:n
-    #     # param_cost = (x, exp) -> alg.P(sols, x, exp)
-    #     f2(x, (exp, minexpgap)) = f(x, (exp, minexpgap)) + alg.P(ps, x, exp)
-    #     sol = _solve(OptimizationFunction(f2, AutoFiniteDiff()), alg.alg; kwargs...)
-    #     push!(sols, sol)
-    #     push!(ps, collect(sol.sol))
-    # end
     return sols
 end
 
 function SciMLBase.solve(prob::OptProb, alg::BestOf; minexcgap, initials=get_initials(prob), ranges=get_ranges(prob), exps=default_exps(), kwargs...)
-    # f, fs = opt_func(prob, alg)
     fs(x) = fullsolve(prob.hamfunc(x), prob.basis)
     function f(x, (exp, minexcgap))
         sol = fs(x)
@@ -318,7 +281,6 @@ function SciMLBase.solve(prob::OptProb, alg::BestOf; minexcgap, initials=get_ini
     return merge(res[1], (; all_ss=res))
 end
 function SciMLBase.solve(prob::OptProb, alg; initials=get_initials(prob), ranges=get_ranges(prob), kwargs...)
-    # f, fs = opt_func(prob, alg)
     fs(x) = fullsolve(prob.hamfunc(x), prob.basis)
     function f(x, (exp, minexcgap))
         sol = fs(x)
@@ -351,9 +313,6 @@ function _solve(f, alg; MaxTime=5, minexcgap=1 / 4, exps=default_exps(), maxiter
         sol = solve(prob, NelderMead(); maxiters, maxtime, kwargs...)
     end
     return sol
-    # optsol = fs(sol)
-    # params = NamedTuple(zip((:Δ, :δϕ, :ε), decompose(sol)))
-    # return (; alg, sol, optsol)
 end
 
 function SciMLBase.solve(prob::OptProb, alg::IPNewton; MaxTime=5, minexcgap=1 / 4, maxiters=1000, initials=get_initials(prob), final_NM, exps, kwargs...)
