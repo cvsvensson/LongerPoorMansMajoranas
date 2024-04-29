@@ -61,26 +61,30 @@ function decompose_rϕε(ps, N=div(2length(ps), 3))
     εs = ps[Nhalf+Nhalf2+1:end]
     return rs, ϕs, εs
 end
-function decompose_ϕε(ps, N=length(ps))#div(length(ps), 2))
-    # Nhalf = div(N + 1, 2)
+function decompose_ϕε(ps, N=length(ps))
     Nhalf2 = div(N, 2)
     ϕs = ps[1:Nhalf2]
     εs = ps[Nhalf2+1:end]
     return ϕs, εs
 end
-function decompose_allϕ_ε(ps, N)#div(length(ps), 2))
+function decompose_allϕ_ε(ps, N)
     ϕs = ps[1:N]
     εs = ps[N+1:end]
     return ϕs, εs
 end
+function decompose_allδϕ_allε(ps, N)
+    δϕs = ps[1:N-1]
+    εs = ps[N:end]
+    return δϕs, εs
+end
 splatter_rϕε(ps, N) = splatter_rϕε(decompose_rϕε(ps)..., N)
 function splatter_rϕε(rs, δϕs, ϵs, N)
-    # N = div(2 * (length(rs) + length(δϕs) + length(ϵs)), 3)
     return vcat(reflect(rs, N) .* exp.(1im .* diffreflect(δϕs, N)), ϵs)
 end
 
 hamfunc(::RΔ_Rδϕ_Rε, c, fixedparams) = hamfunc_rϕε(c, fixedparams)
 hamfunc(::Rδϕ_Rε, c, fixedparams) = hamfunc_ϕε(c, fixedparams)
+hamfunc(::Aδϕ_Aε, c, fixedparams) = hamfunc_allδϕ_allε(c, fixedparams)
 hamfunc(::Aϕ_Rε, c, fixedparams) = hamfunc_allϕ_ε(c, fixedparams)
 hamfunc(::Hδϕ_Hε, c, fixedparams) = hamfunc_Hδϕ_Hε(c, fixedparams)
 hamfunc(::Hδϕ_Aε, c, fixedparams) = hamfunc_Hδϕ_Aε(c, fixedparams)
@@ -142,6 +146,7 @@ function hamfunc_Hδϕ_Aε(c, fixedparams)
     ps = rand(1 + N)
     cache = get_cache(c, Matrix(f2(ps)))
     # display(f2(ps))
+
     return f2, f2!, cache
 end
 function hamfunc_allϕ_ε(c, fixedparams)
@@ -190,13 +195,16 @@ end
 get_initials(prob::OptProb) = get_initials(prob.optparams, div(length(prob.basis), 2))
 get_ranges(prob::OptProb) = get_ranges(prob.optparams, div(length(prob.basis), 2))
 initial_Aϕ(N) = zeros(N)
+initial_Aδϕ(N) = zeros(N - 1)
 initial_Rε(N) = zeros(div(N + 1, 2))
 initial_Hε(N) = [0.0]
 initial_Aε(N) = zeros(N)
 initial_Hδϕ(N) = [0.0]
 initial_Rδϕ(N) = 0.0 .* ones(div(N, 2))
+
 initial_RΔ(N) = ones(div(N + 1, 2))
 ranges_Aϕ(N) = [(0.0, 2.0pi) for i in 1:N]
+ranges_Aδϕ(N) = [(0.0, 2.0pi) for i in 1:N-1]
 ranges_Rε(N) = [100 .* (0, 1) for i in 1:div(N + 1, 2)]
 ranges_Aε(N) = [100 .* (0, 1) for i in 1:N]
 ranges_Rδϕ(N) = [(0.0, 1.0pi) for i in 1:div(N, 2)]
@@ -218,6 +226,9 @@ function get_initials(::Hδϕ_Aε, N)
 end
 function get_initials(::Rδϕ_Rε, N)
     vcat(initial_Rδϕ(N), initial_Rε(N))
+end
+function get_initials(::Aδϕ_Aε, N)
+    vcat(initial_Aδϕ(N), initial_Aε(N))
 end
 function get_ranges(::Rδϕ_Rε, N)
     δϕranges = ranges_Rδϕ(N)
@@ -244,6 +255,11 @@ function get_ranges(::Aϕ_Rε, N)
     ϕranges = ranges_Aϕ(N)
     εranges = ranges_Rε(N)
     vcat(ϕranges, εranges)
+end
+function get_ranges(::Aδϕ_Aε, N)
+    δϕranges = ranges_Aδϕ(N)
+    εranges = ranges_Aε(N)
+    vcat(δϕranges, εranges)
 end
 default_exps() = collect(range(0.1, 3, length=5))
 
