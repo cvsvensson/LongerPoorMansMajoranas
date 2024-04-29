@@ -4,6 +4,7 @@ struct RΔ_Rδϕ_Rε <: AbstractOptParams end
 struct Rδϕ_Rε <: AbstractOptParams end
 struct Hδϕ_Hε <: AbstractOptParams end
 struct Hδϕ_Aε <: AbstractOptParams end
+struct Aδϕ_Aε <: AbstractOptParams end
 
 Base.@kwdef struct Optimizer{f,r,i,t,ec,B}
     hamfunc::f

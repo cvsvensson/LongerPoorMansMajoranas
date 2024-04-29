@@ -13,12 +13,7 @@ synceddir(args...) = joinpath(ENV["Dropbox"], "data", "LongerPoorMans", args...)
 includet(scriptsdir("abs", "phase_plots.jl"))
 includet(scriptsdir("abs", "phase_misc.jl"))
 ##
-function get_gap_derivatives(hamfunc, c, p)
-    gapfunc = (x -> x.gap) ∘ Base.Fix2(fullsolve, c) ∘ hamfunc
-    gradient = FiniteDiff.finite_difference_gradient(gapfunc, p)
-    hessian = FiniteDiff.finite_difference_hessian(gapfunc, p)
-    (; gradient, hessian)
-end
+
 ##
 fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0, Δ=1, U=0, Ez=3)
 ## 2site sweet spot

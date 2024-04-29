@@ -88,3 +88,21 @@ function calculate_kitaev_phase_data(N; save, res=(100, 100), folder)
     data = map(mapfunc, iter)
     join_data(ss, data, N, (εs, ts, ("ε", "t")), "kitaev", save, folder)
 end
+
+
+
+function get_gap_gradient(hamfunc, c, p)
+    gapfunc = (x -> x.gap) ∘ Base.Fix2(fullsolve, c) ∘ hamfunc
+    FiniteDiff.finite_difference_gradient(gapfunc, p)
+end
+
+function get_gap_hessian(hamfunc, c, p)
+    gapfunc = (x -> x.gap) ∘ Base.Fix2(fullsolve, c) ∘ hamfunc
+    FiniteDiff.finite_difference_hessian(gapfunc, p)
+end
+function get_gap_derivatives(hamfunc, c, p)
+    gapfunc = (x -> x.gap) ∘ Base.Fix2(fullsolve, c) ∘ hamfunc
+    gradient = FiniteDiff.finite_difference_gradient(gapfunc, p)
+    hessian = FiniteDiff.finite_difference_hessian(gapfunc, p)
+    (; gradient, hessian)
+end
