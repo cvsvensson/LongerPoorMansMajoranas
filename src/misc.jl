@@ -24,12 +24,12 @@ function vectorize_arg(arg::Vector, c)
 end
 vectorize_arg(arg::Tuple, c) = vectorize_arg([arg...], c)
 
-function hamiltonian(basis::FermionBdGBasis; parameters...)
-    BdGMatrix(whamiltonian(basis; parameters...); check=false)
-end
-function hamiltonian(basis::FermionBasis; parameters...)
-    blockdiagonal(whamiltonian(basis; parameters...), basis)
-end
+# function hamiltonian(basis::FermionBdGBasis; conjugate, parameters...)
+#     BdGMatrix(whamiltonian(basis; conjugate, parameters...); check=false)
+# end
+# function hamiltonian(basis::FermionBasis; conjugate, parameters...)
+#     blockdiagonal(whamiltonian(basis; conjugate, parameters...), basis)
+# end
 
 function get_symlist(parameters)
     syms = filter(x -> x[2] isa Num || x[2] isa Vector{Num}, parameters) |> values |> collect
@@ -37,7 +37,7 @@ function get_symlist(parameters)
 end
 function build_whamiltonian(basis::FermionBdGBasis; parameters...)
     # bdg = BdGMatrix(whamiltonian(basis; parameters...); check=false)
-    bdg = Matrix(whamiltonian(basis; parameters...))
+    bdg = Matrix(whamiltonian(basis; conjugate=false, parameters...))
     symlist = get_symlist(parameters)
     # display(bdg)
     # display(hermitianpart(bdg))
@@ -48,11 +48,11 @@ function build_whamiltonian(basis::FermionBdGBasis; parameters...)
 end
 function build_whamiltonian(basis::FermionBasis; parameters...)
     symlist = get_symlist(parameters)
-    bd = blockdiagonal(Matrix(whamiltonian(basis; parameters...)), basis)
+    bd = blockdiagonal(Matrix(whamiltonian(basis; conjugate=false, parameters...)), basis)
     # println(symlist)
     f, f! = build_function(bd, symlist, expression=Val{false})
     f2(x...) = hermitianpart!(f(x...))
-    f2!(out, x...) = hermitianpart!(f!(out, x...))
+    f2!(out, x...) = (f!(out, x...); hermitianpart!(out))
     return f2, f2!
 end
 
@@ -61,11 +61,16 @@ cell_labels(basis) = Base.Fix2(cell_labels, basis)
 function reduced_similarity(basis, oddvec::AbstractVector, evenvec)
     o = oddvec * oddvec'
     e = evenvec * evenvec'
-    fermions = map(label -> norm(partial_trace(o - e, (label,), basis), 2), keys(basis))
+    δρ = o - e
+    fermions = map(label -> sum(abs, partial_trace(δρ, (label,), basis)), keys(basis))
     labels = cell_labels(basis)
-    cells = map(n -> norm(partial_trace(o - e, labels(n), basis), 2),
-        spatial_labels(basis))
-    return (; fermions, cells)
+
+    cells = map(n -> norm(partial_trace(δρ, labels(n), basis), 2), spatial_labels(basis))
+    cells2 = map((n1, n2) -> norm(partial_trace(δρ, sort(union(labels(n1), labels(n2)); by=last), basis), 2), spatial_labels(basis), Iterators.drop(spatial_labels(basis), 1))
+
+    local_fermions(n) = reduce(vcat, [basis[l], basis[l]'] for l in labels(n))
+    cells_bdg = QuantumDots.Dictionary(spatial_labels(basis), [sum(abs, tr(δρ * (f1 * f2)) for (f1, f2) in Base.product(local_fermions(n), local_fermions(n))) for n in spatial_labels(basis)])
+    return (; fermions, cells, cells2, cells_bdg)
 end
 
 function reduced_similarity(qps::AbstractVector{<:QuantumDots.QuasiParticle})
@@ -78,12 +83,12 @@ function reduced_similarity(qps::AbstractVector{<:QuantumDots.QuasiParticle})
     cell_positions(n) = [basis.position[cl] for cl in cell_labels(n, basis)]
     cinds(n) = vcat(cell_positions(n), (cell_positions(n) .+ N))
     #cell_matrices = (; even=map(n -> ρeven[cinds(n), cinds(n)], 1:div(N, 2)), odd=map(n -> ρodd[cinds(n), cinds(n)], 1:div(N, 2)))
-    fermions = QuantumDots.Dictionary(labels, [norm(ρeven[[n, n + N], [n, n + N]] - ρodd[[n, n + N], [n, n + N]], 2) for n in 1:length(labels)])
-    cells = QuantumDots.Dictionary(1:div(N, 2), [norm(ρeven[cinds(n), cinds(n)] - ρodd[cinds(n), cinds(n)], 2) for n in 1:div(N, 2)])
-    return (; fermions, cells)#, cell_matrices)
+    fermions = QuantumDots.Dictionary(labels, [norm(ρeven[[n, n + N], [n, n + N]] - ρodd[[n, n + N], [n, n + N]]) for n in 1:length(labels)])
+    cells_bdg = QuantumDots.Dictionary(1:div(N, 2), [norm(ρeven[cinds(n), cinds(n)] - ρodd[cinds(n), cinds(n)]) for n in 1:div(N, 2)])
+    return (; fermions, cells_bdg)#, cell_matrices)
 end
 
-function half_majorana_polarizations(majcoeffs, basis)
+function get_majorana_polarizations(majcoeffs, basis)
     keys1 = spatial_labels(basis)
     N = length(keys1)
     n = 1#div(N, 2)
@@ -93,9 +98,11 @@ function half_majorana_polarizations(majcoeffs, basis)
     keysR = filter(k -> first(k) in keys1R, keys(basis))
     left = QuantumDots.majorana_polarization(majcoeffs..., keysL)
     right = QuantumDots.majorana_polarization(majcoeffs..., keysR)
-    return (; left, right)
+    singles = [QuantumDots.majorana_polarization(majcoeffs..., filter(k -> first(k) == key, keys(basis))) for key in keys1]
+    return (; left, right, singles)
 end
-function fullsolve(H, basis::FermionBasis; reduced=true, transport=missing, oddvalindex=1)
+function fullsolve(_H, basis::FermionBasis; reduced=true, transport=missing, oddvalindex=1)
+    H = Hermitian(blockdiagonal(_H, basis))
     eig = QuantumDots.diagonalize(H)
     sectors = blocks(eig)
     fullsectors = blocks(eig; full=true)
@@ -105,13 +112,14 @@ function fullsolve(H, basis::FermionBasis; reduced=true, transport=missing, oddv
     evenvecs = fullsectors[2].vectors
     oddvec = oddvecs[:, oddvalindex]
     majcoeffs = QuantumDots.majorana_coefficients(oddvec, evenvecs[:, 1], basis)
-    mps = half_majorana_polarizations(majcoeffs, basis)
+    mps = get_majorana_polarizations(majcoeffs, basis)
     reduced = reduced ? reduced_similarity(basis, oddvec, evenvecs[:, 1]) : missing
-    conductance = conductance_matrix(transport, eig; basis)
+    conductance = conductance_matrix(transport, eig, basis)
     return (; gap=oddvals[oddvalindex] - first(evenvals), gapratio=gapratio(oddvals, evenvals), reduced, mps, majcoeffs, energies=(oddvals, evenvals), conductance, excgap=excgap(oddvals, evenvals))
 end
-using SparseArrays 
-function fullsolve(H::BdGMatrix, basis::FermionBdGBasis; reduced=true, transport=missing, cutoff=1e-10)
+using SparseArrays
+function fullsolve(_H::AbstractMatrix, basis::FermionBdGBasis; reduced=true, transport=missing, cutoff=1e-10)
+    H = BdGMatrix(_H |> Hermitian; check=false)
     N = QuantumDots.nbr_of_fermions(basis)
     es, ops = try
         diagonalize(H)
@@ -123,10 +131,9 @@ function fullsolve(H::BdGMatrix, basis::FermionBdGBasis; reduced=true, transport
     # es, ops = QuantumDots.enforce_ph_symmetry(eigen(H))
     if !QuantumDots.check_ph_symmetry(es, ops; cutoff)
         @warn "particle-hole symmetry not valid?" #$es \n $ops"
-        # p = sortperm(es, by=QuantumDots.energysort)
-        # inds = Iterators.take(eachindex(es), N)
-        # display(sum(abs(es[p[i]] + es[p[QuantumDots.quasiparticle_adjoint_index(i, N)]]) for i in inds))
-        # norm(ops' * ops - I) |> display
+        @debug "particle-hole symmetry not valid?" es ops inds = Iterators.take(eachindex(es), N) p = sortperm(es, by=QuantumDots.energysort)
+        # @debug "$(sum(abs(es[p[i]] + es[p[QuantumDots.quasiparticle_adjoint_index(i, N)]]) for i in inds))"
+        # @debug "$(norm(ops' * ops - I)))"
     end
     qps = map(op -> QuantumDots.QuasiParticle(op, basis), eachcol(ops))
     best_majorana = qps[N]
@@ -136,7 +143,7 @@ function fullsolve(H::BdGMatrix, basis::FermionBdGBasis; reduced=true, transport
     gapratio = sign(gap)abs(gap / excgap)
     # lefthalflabels = filter(l -> Base.first(l) <= div(N, 4), keys(basis).values)
     majcoeffs = QuantumDots.majorana_coefficients(best_majorana)
-    mps = half_majorana_polarizations(majcoeffs, basis)
+    mps = get_majorana_polarizations(majcoeffs, basis)
     reduced = reduced_similarity(qps)
     return (; gap, gapratio, reduced, mps, majcoeffs, excgap, energies=es, parity=gs_parity)
 end
@@ -150,10 +157,15 @@ end
 excgap(odd, even) = min(odd[2] - odd[1], even[2] - even[1])
 excgap(sol) = excgap(sol.energies...)
 
-
-LD(sol) = sum(sol.reduced.cells)
-LDf(sol) = sum(sol.reduced.fermions)
+LD(sol, p=2) = norm(sol.reduced.cells, p) #maximum(sol.reduced.cells)#
+LDmax(sol) = maximum(sol.reduced.cells)
+LDf(sol, p=2) = norm(sol.reduced.fermions, p)
+LDfmax(sol) = maximum(sol.reduced.fermions)
+LDbdgmax(sol) = maximum(sol.reduced.cells_bdg)
+LDbdg(sol, p=2) = norm(sol.reduced.cells_bdg, p)
 MP(sol) = 1 - (abs(sol.mps.left.mp) + abs(sol.mps.right.mp)) / 2
+MPI(sol) = 1 - minimum(abs ∘ (x -> x.mp), sol.mps.singles)
+MPI2(sol) = 1 - mean(abs ∘ (x -> x.mp), sol.mps.singles)
 MPU(sol) = 1 - (abs(sol.mps.left.mpu) + abs(sol.mps.right.mpu)) / 2
 
 
@@ -197,36 +209,4 @@ function reflect(_p, N; pad=[])
             throw(ArgumentError("Length of p must be N or N÷2"))
         end
     end
-end
-
-
-#
-function whamiltonian_2site((c1up, c1dn), (c2up, c2dn); t, V, θϕ1, θϕ2)
-    ms = hopping_rotated_nh(t, (c1up, c1dn), (c2up, c2dn), θϕ1, θϕ2)
-    if iszero(V)
-        return ms
-    else
-        return ms + V * ((QuantumDots.numberop(c1up) + QuantumDots.numberop(c1dn)) * (QuantumDots.numberop(c2up) + QuantumDots.numberop(c2dn)))
-    end
-end
-function whamiltonian_1site((cup, cdn); ε, Ez, Δ, U)
-    (ε - Ez) * QuantumDots.numberop(cup) + (ε + Ez) * QuantumDots.numberop(cdn) +
-    pairing_nh(Δ, cup, cdn) + U * QuantumDots.coulomb(cup, cdn)
-end
-pairing_nh(Δ, cup, cdn) = 2Δ * cup'cdn'
-function hopping_rotated_nh(t, (c1up, c1dn), (c2up, c2dn), angles1, angles2)
-    Ω = QuantumDots.su2_rotation(angles1)' * QuantumDots.su2_rotation(angles2)
-    c1 = @SVector [c1up, c1dn]
-    c2 = @SVector [c2up, c2dn]
-    2t * c1' * Ω * c2
-end
-function whamiltonian(c; ε, Ez, t, Δ, U, V, θ)
-    M = length(c)
-    cell = QuantumDots.cell
-    @assert length(cell(1, c)) == 2 "Each unit cell should have two fermions for this hamiltonian"
-    N = div(M, 2)
-    gv = QuantumDots.getvalue
-    h1s = (whamiltonian_1site(cell(j, c); ε=gv(ε, j, N), Ez=gv(Ez, j, N), Δ=gv(Δ, j, N), U=gv(U, j, N)) for j in 1:N)
-    h2s = (whamiltonian_2site(cell(j, c), cell(mod1(j + 1, N), c); t=gv(t, j, N; size=2), V=gv(V, j, N; size=2), θϕ1=(gv(θ, j, N), 0), θϕ2=(gv(θ, mod1(j + 1, N), N), 0)) for j in 1:N)
-    return sum(h1s) + sum(h2s)
 end
