@@ -23,15 +23,11 @@ default(; c=default_scale,
 )
 ##
 # Ns = [2, 3, 4, 5, 20, 40]
-Fdatas = Dict(zip([2:5...], load_full_data.([2:5...], "high_res", datadir)))
+Fdatas = Dict(zip([2:5..., 20, 40], load_full_data.([2:5..., 20, 40], "high_res", datadir)));
 # Fdatas[2] = load_full_data(2, "high-res-ldbdg", datadir)
-Fdatas_ss = Dict(zip(2:5, load_full_data.(2:5, "ss_bdg_noexcgap_bestof", datadir)))
-foreach(N -> N in keys(Fdatas) ? (Fdatas[N]["ss"] = Fdatas_ss[N]["ss"]) : nothing, collect(keys(Fdatas_ss)))
+Fdatas_ss = Dict(zip(2:39, load_full_data.(2:39, "ss_bdg_noexcgap_bestof", datadir)));
+foreach(N -> N in keys(Fdatas) ? (Fdatas[N]["ss"] = Fdatas_ss[N]["ss"]) : nothing, collect(keys(Fdatas_ss)));
 
-# Fdatas_ss = Dict(zip(Ns, load_full_data.(Ns[1:4], "ss")))
-# Fdatas_ss2 = Dict(zip(Ns, load_full_data.(Ns[1:4], "ss")))
-# Fdatas_mpi = Dict(zip([2, 3, 4, 5, 10, 20], load_full_data.([2, 3, 4, 5, 10, 20], "mpi", datadir)))
-# foreach(N -> (Fdatas[N]["ss"] = Fdatas_ss[N]["ss"]), Ns[1:4])
 ## Get perturbative data
 a = FermionBdGBasis(1:3)
 function perturbative_solutions(a, M, fixedparams, labels, x, y; transport=missing)
@@ -46,12 +42,13 @@ F3data = Fdatas[3]
 δϕs = F3data["y"]
 labels = F3data["labels"]
 fixedparams = F3data["fixedparams"]
+fixedparams = merge(fixedparams, (; Δ=fixedparams.Δ * [1, 1, 1]))
 perturbative_data = [join_data(nothing, [perturbative_solutions(a, M, fixedparams, labels, [x, x, x], y) for y in δϕs, x in εs], 3, (εs, δϕs, ("ε", "δϕ")), "perturbative", false, "") for M in 0:2];
 pfdata = [perturbative_data..., F3data]
 
 ##
-phase_plots = [plot_f(Fdatas[N], LDbdg; clim_max=2, leg=:bottomleft, plot_ss=!ismissing(Fdatas[N]["ss"]), title="$N sites", colorbar_title="LD", ss_label=false, c=default_scale) for N in sort(collect(keys(Fdatas)))]
-phase_plots_notitle = [plot_f(Fdatas[N], LongerPoorMansMajoranas.LDbdg; leg=:bottomleft, plot_ss=!ismissing(Fdatas[N]["ss"]), title="", colorbar_title="LD", ss_label=false, c=default_scale) for N in sort(collect(keys(Fdatas)))]
+phase_plots = [plot_f(Fdatas[N], x -> N * LDbdg(x); clim_max=2, leg=:bottomleft, plot_ss=!ismissing(Fdatas[N]["ss"]), title="$N sites", colorbar_title="LD", ss_label=false, c=default_scale) for N in sort(collect(keys(Fdatas)))]
+phase_plots_notitle = [plot_f(Fdatas[N], LDbdg; leg=:bottomleft, plot_ss=!ismissing(Fdatas[N]["ss"]), title="", colorbar_title="LD", ss_label=false, c=default_scale) for N in sort(collect(keys(Fdatas)))]
 # phase_plots = [plot_f(Fdatas_mpi[N], Base.Fix1(*, 1) ∘ LongerPoorMansMajoranas.LDbdgmax; c=default_scale, leg=:bottomleft, plot_ss=false, title="$N sites", colorbar_title="1-MP", ss_label=false) for N in sort(collect(keys(Fdatas_mpi)))]
 ##
 display.(phase_plots[1:end])
@@ -124,8 +121,8 @@ savefig(p_kitaev, plotsdir(string("kitaev_phase_diagram_LD_2_40", ".svg")))
 
 ##
 p_scaling = let
-    Ns = sort(filter(k -> k ∉ [], collect(keys(Fdatas_ss))))
-    p = plot(; xlabel="N", xticks=Ns[1]:2:Ns[end], markers=true, frame=:box, legend=:topright, size=0.9 .* (600, 400), ylims=(1e-4, 1), thickness_scaling=1.5, yscale=:log10, yticks=10.0 .^ (-4:1:1), fontfamily="Computer Modern")
+    Ns = sort(filter(k -> k ∉ [], collect(keys(Fdatas_ss))))[1:20]
+    p = plot(; xlabel="N", xticks=Ns[1]:2:Ns[end], markers=true, frame=:box, legend=:topright, size=0.9 .* (600, 400), ylims=(1e-5, 2), thickness_scaling=1.5, yscale=:log10, yticks=10.0 .^ (-4:1:1), fontfamily="Computer Modern")
     plot!(Ns, map(N -> LDbdg(Fdatas_ss[N]["ss"].optsol), Ns); c=:lighttest, legend=false, markers=true, ylabel="LD")
 end
 ##
