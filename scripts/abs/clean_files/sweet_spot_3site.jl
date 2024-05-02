@@ -80,28 +80,34 @@ for δε2 in δε2s
     push!(level_data, level_sols2)
 end
 ##
-let data = map(x -> x[1], data)
-    p_LD = plot(δε2s, map(x -> LDbdg(x.optsol), data), markers=true, ylabel="LD", xlabel="δε2", label="Inhomogeneous", ylims=(0, 1))
-    scatter!([0], [LDbdg(ss.optsol)], c=:red, label="homogeneous")
+let phase_data = map(x -> x[1], phase_data), level_data = map(x -> x[1], level_data)
+    p_LD = plot(δε2s, map(x -> LDbdg(x.optsol), phase_data), markers=true, ylabel="LD", xlabel="δε2", label="Inhomogeneous phase branch", ylims=(0, 1))
+    plot!(δε2s, map(x -> LDbdg(x.optsol), level_data), markers=true, ylabel="LD", xlabel="δε2", label="Inhomogeneous level branch")
+    # scatter!([0], [LDbdg(ss.optsol)], c=:red, label="homogeneous")
     hline!([LDbdg(homogeneous_ss2.optsol)], label="2 site sweet spot", lw=2, ls=:dash)
-    p_excgap = plot(δε2s, map(x -> x.optsol.excgap, data), markers=true, ylabel="excgap", xlabel="δε2", label="Inhomogeneous", ylims=(0, 0.3))
-    scatter!([0], [ss.optsol.excgap], c=:red, label="homogeneous")
+    p_excgap = plot(δε2s, map(x -> x.optsol.excgap, phase_data), markers=true, ylabel="excgap", xlabel="δε2", label="Inhomogeneous phase branch", ylims=(0, 0.3))
+    plot!(δε2s, map(x -> x.optsol.excgap, level_data), markers=true, ylabel="excgap", xlabel="δε2", label="Inhomogeneous level branch")
+    # scatter!([0], [ss.optsol.excgap], c=:red, label="homogeneous")
     hline!([homogeneous_ss2.optsol.excgap], ls=:dash, lw=2, label="2 site sweet spot")
-    p_gap = plot(δε2s, map(x -> x.optsol.gap, data), markers=true, ylabel="gap", xlabel="δε2", label="Inhomogeneous")
-    scatter!([0], [ss.optsol.gap], c=:red, label="homogeneous")
+    p_gap = plot(δε2s, map(x -> x.optsol.gap, phase_data), markers=true, ylabel="gap", xlabel="δε2", label="Inhomogeneous phase branch")
+    plot!(δε2s, map(x -> x.optsol.gap, level_data), markers=true, ylabel="gap", xlabel="δε2", label="Inhomogeneous level branch")
+    # scatter!([0], [ss.optsol.gap], c=:red, label="homogeneous")
     hline!([homogeneous_ss2.optsol.gap], ls=:dash, lw=2, label="2 site sweet spot")
-    p_gap_der = plot(δε2s, map(x -> norm(x.gradient), data), markers=true, ylabel="gap_der", xlabel="δε2", label="Inhomogeneous", ylims=(0, 1))
-    scatter!([0], [norm(ss.gradient)], c=:red, label="homogeneous")
+    p_gap_der = plot(δε2s, map(x -> norm(x.gradient), phase_data), markers=true, ylabel="gap_der", xlabel="δε2", label="Inhomogeneous phase branch", ylims=(0, 1))
+    plot!(δε2s, map(x -> norm(x.gradient), level_data), markers=true, ylabel="gap_der", xlabel="δε2", label="Inhomogeneous level branch", ylims=(0, 1))
+    # scatter!([0], [norm(ss.gradient)], c=:red, label="homogeneous")
     hline!([norm(homogeneous_ss2.gradient)], ls=:dash, lw=2, label="2 site sweet spot")
 
-    p_params = plot(δε2s, stack(map(x -> (x.sol), data))', markers=true, ylabel="params", xlabel="δε2", ylims=(0, pi))
+    p_params = plot(δε2s, stack(map(x -> (x.sol), phase_data))', markers=true, ylabel="params", xlabel="δε2", ylims=(0, pi))
+    plot!(δε2s, stack(map(x -> (x.sol), level_data))', markers=true, ylabel="params", xlabel="δε2", ylims=(0, pi))
     # scatter!([0], [norm(ss.gradient)], c=:red, label="homogeneous")
 
+    # plot(p_LD, p_excgap, p_params)#, layout=(1, 2))
     plot(p_LD, p_excgap, layout=(1, 2))
-    plot(p_LD, p_excgap, p_gap_der, p_gap, p_params, layout=(3, 2), size=(800, 800))
+    # plot(p_LD, p_excgap, p_gap_der, p_gap, p_params, layout=(3, 2), size=(800, 800))
 end
 ##
-savefig("inhomogeneous_sweet_spot_3site_level_branch.png")
+savefig("inhomogeneous_sweet_spot_3site.png")
 ##
 for n in [3, 5, 10] # Look at tuning plot for these detunings
     let k = n, hamfunc, a, data_p1, data = map(x -> x[1], data)
