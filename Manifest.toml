@@ -2330,7 +2330,7 @@ version = "2.9.4"
 
 [[deps.QuantumDots]]
 deps = ["AbstractDifferentiation", "AxisKeys", "BlockDiagonals", "Crayons", "Dictionaries", "LinearAlgebra", "LinearMaps", "Reexport", "SciMLBase", "SkewLinearAlgebra", "SparseArrays", "SplitApplyCombine", "StaticArrays"]
-git-tree-sha1 = "65a8f42d1e6f5b2c04b748d142bc04b9c4ee724a"
+git-tree-sha1 = "d68a9de498f0b669751cf1b77a0fafd2700b8f04"
 repo-rev = "main"
 repo-url = "https://github.com/cvsvensson/QuantumDots.jl"
 uuid = "312194fd-fec5-4b07-ba1c-a40d7013a56a"
