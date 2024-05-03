@@ -62,15 +62,18 @@ function reduced_similarity(basis, oddvec::AbstractVector, evenvec)
     o = oddvec * oddvec'
     e = evenvec * evenvec'
     δρ = o - e
-    fermions = map(label -> sum(abs, partial_trace(δρ, (label,), basis)), keys(basis))
+    fermions = map(label -> norm(partial_trace(δρ, (label,), basis)), keys(basis))
     labels = cell_labels(basis)
 
     cells = map(n -> norm(partial_trace(δρ, labels(n), basis), 2), spatial_labels(basis))
     cells2 = map((n1, n2) -> norm(partial_trace(δρ, sort(union(labels(n1), labels(n2)); by=last), basis), 2), spatial_labels(basis), Iterators.drop(spatial_labels(basis), 1))
 
     local_fermions(n) = reduce(vcat, [basis[l], basis[l]'] for l in labels(n))
-    cells_bdg = QuantumDots.Dictionary(spatial_labels(basis), [sum(abs, tr(δρ * (f1 * f2)) for (f1, f2) in Base.product(local_fermions(n), local_fermions(n))) for n in spatial_labels(basis)])
-    return (; fermions, cells, cells2, cells_bdg)
+    nf = sqrt(2^QuantumDots.nbr_of_fermions(basis))
+    cells_bdg = QuantumDots.Dictionary(spatial_labels(basis), [sqrt(sum(abs2, tr(δρ * (f1 * f2)) for (f1, f2) in Base.product(local_fermions(n), local_fermions(n)))) / nf for n in spatial_labels(basis)])
+    cells_bdg2 = QuantumDots.Dictionary(spatial_labels(basis), [norm(one_particle_density_matrix(δρ, basis, labels(n))) / nf for n in spatial_labels(basis)])
+
+    return (; fermions, cells, cells2, cells_bdg, cells_bdg2)
 end
 
 function reduced_similarity(qps::AbstractVector{<:QuantumDots.QuasiParticle})
@@ -83,8 +86,9 @@ function reduced_similarity(qps::AbstractVector{<:QuantumDots.QuasiParticle})
     cell_positions(n) = [basis.position[cl] for cl in cell_labels(n, basis)]
     cinds(n) = vcat(cell_positions(n), (cell_positions(n) .+ N))
     #cell_matrices = (; even=map(n -> ρeven[cinds(n), cinds(n)], 1:div(N, 2)), odd=map(n -> ρodd[cinds(n), cinds(n)], 1:div(N, 2)))
+    nf = sqrt(2^N)
     fermions = QuantumDots.Dictionary(labels, [norm(ρeven[[n, n + N], [n, n + N]] - ρodd[[n, n + N], [n, n + N]]) for n in 1:length(labels)])
-    cells_bdg = QuantumDots.Dictionary(1:div(N, 2), [norm(ρeven[cinds(n), cinds(n)] - ρodd[cinds(n), cinds(n)]) for n in 1:div(N, 2)])
+    cells_bdg = QuantumDots.Dictionary(1:div(N, 2), [norm(ρeven[cinds(n), cinds(n)] - ρodd[cinds(n), cinds(n)]) / nf for n in 1:div(N, 2)])
     return (; fermions, cells_bdg)#, cell_matrices)
 end
 

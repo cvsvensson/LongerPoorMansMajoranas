@@ -38,6 +38,20 @@ ti = time()
     @test all(minimum(abs.(E .- mbvals)) < 1e-12 for E in bdgvals[5:8])
 end
 
+@testset "LD" begin
+    c = FermionBasis(1:2, (:↑, :↓); qn=QuantumDots.parity)
+    cbdg = FermionBdGBasis(1:2, (:↑, :↓))
+    ham = LongerPoorMansMajoranas.whamiltonian(c; ε=1, t=0.5, θ=0.7, V=0, Δ=1, U=0.0, Ez=3, conjugate=true)
+    ham_bdg = LongerPoorMansMajoranas.whamiltonian(cbdg; ε=1, t=0.5, θ=0.7, V=0, Δ=1, U=0.0, Ez=3, conjugate=true)
+    sol = fullsolve(ham, c)
+    sol_bdg = fullsolve(ham_bdg, cbdg)
+    @test sol.gap ≈ sol_bdg.gap
+    @test sol.excgap ≈ sol_bdg.excgap
+    @test norm(sol.majcoeffs) ≈ norm(sol_bdg.majcoeffs)
+    @test LDbdg(sol) ≈ LDbdg(sol_bdg)
+    @test LDf(sol) ≈ LDf(sol_bdg)
+end
+
 using ForwardDiff
 function low_energy_projection(H)
     vals, vecs = eigen(Matrix(H))
