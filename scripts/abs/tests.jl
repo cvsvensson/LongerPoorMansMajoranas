@@ -11,7 +11,7 @@ using LaTeXStrings
 using Test
 ## Consistency between bdg and many-body
 @testset "Consistency between bdg and many-body" begin
-    N = 2
+    N = 3
     c = FermionBasis(1:N, (:↑, :↓); qn=QuantumDots.parity)
     cbdg = FermionBdGBasis(1:N, (:↑, :↓))
     fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0, Δ=1, U=0.0, Ez=3)

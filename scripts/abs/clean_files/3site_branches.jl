@@ -20,7 +20,7 @@ target = bdg ? LDbdg : LD
 c2 = bdg ? FermionBdGBasis(1:2, (:↑, :↓)) : FermionBasis(1:2, (:↑, :↓); qn=QuantumDots.parity)
 f2, f2!, cache2 = hamfunc(Hδϕ_Hε(), c2, fixedparams)
 exps = range(0.1, 4, 5)
-_homogeneous_ss2 = find_sweet_spot((f2, f2!, cache2), c2, Hδϕ_Hε(); exps, MaxTime=1, target, minexcgap=0, alg=BestOf(best_algs()[1:end-1]))
+_homogeneous_ss2 = find_sweet_spot((f2, f2!, cache2), c2, Hδϕ_Hε(); exps, MaxTime=1, target, minexcgap=0, alg=BestOf(best_algs()[1:end-2]))
 homogeneous_ss2 = merge(_homogeneous_ss2, get_gap_derivatives(f2, c2, _homogeneous_ss2.sol))
 
 ##
@@ -35,7 +35,7 @@ f([1, 1, 1]) - fh([1, 1]) |> norm
 exps = range(0.1, 4, 5)
 
 param_cost = (ps, p, exp) -> 10.0^(-exp) * 1 / (10.0^(-exp) + sum(p0 -> norm(p0 .- p)^4, ps))
-alg = LongerPoorMansMajoranas.MultipleSS(BestOf(best_algs()[1:end-1]), 2, param_cost)
+alg = LongerPoorMansMajoranas.MultipleSS(BestOf(best_algs()[1:end-2]), 2, param_cost)
 # alg = (BestOf(best_algs()[1:end-1]))
 _homogeneous_ss = find_sweet_spot((fh, fh!, cacheh), c, Hδϕ_Hε(); exps, MaxTime=1, target, minexcgap=0, alg, initials)
 homogeneous_ss = map(sol -> merge(sol, get_gap_derivatives(fh, c, sol.sol)), _homogeneous_ss)
@@ -51,38 +51,42 @@ MaxTime = 1
 minexcgap = ss.optsol.excgap * 0.0
 phase_data = []
 level_data = []
+nodeg_data = []
 δε2s = range(-0.2, 0.4, length=20) #Phase branch
 # δε2s = range(-0.2, 0.7, length=10) #level branch
 for δε2 in δε2s
-    # alg = BestOf(best_algs()[1:end-1])
-    # alg = LongerPoorMansMajoranas.MultipleSS(BestOf(best_algs()[1:end-1]), 2, param_cost)
-    alg = BestOf(best_algs()[1:end-1])
+    # alg = BestOf(best_algs()[1:end-2])
     hamfunc = δϕε1 -> f!(cache, [δϕε1[1], δϕε1[2], δϕε1[2] + δε2])
     prob = OptProb(; hamfunc, basis=c, optparams=Rδϕ_Rε(), target)
 
     #WARNING: This is a hack to get the phase branch
     phase_ranges = [(0.0, 2.0), ε0 .+ 1 .* (-0.5, 0.05)] #phase branch
     level_ranges = [(0.0, 1.0pi), ε0 .+ 1 .* (0.025, 0.3)] # level branch
-
+    nodeg_ranges = [(0.0, 1.0pi), ε0 .+ 1 .* (-0.3, 0.3)]
     # ranges = [(0.0, 1.0pi), ε0 .+ 2 .* (-1, 1)]
 
     # println("INITIALS: ", initials)
     # sols = solve(prob, alg; minexcgap, maxiters=10000, MaxTime, exps, initials, ranges)
     # phase branch
-    phase_sols = [solve(prob, alg; minexcgap, maxiters=10000, MaxTime, exps, initials, ranges=phase_ranges)]
+    phase_sols = [solve(prob, BestOf(best_algs()[1:end-2]); minexcgap, maxiters=10000, MaxTime, exps, initials, ranges=phase_ranges)]
     phase_sols = ss_sorter(phase_sols)
     phase_sols2 = map(sol -> merge(sol, get_gap_derivatives(hamfunc, c, sol.sol)), phase_sols)
     push!(phase_data, phase_sols2)
     # repeat for level branch
-    level_sols = [solve(prob, alg; minexcgap, maxiters=10000, MaxTime, exps, initials, ranges=level_ranges)]
+    level_sols = [solve(prob, BestOf(best_algs()[1:end-2]); minexcgap, maxiters=10000, MaxTime, exps, initials, ranges=level_ranges)]
     level_sols = ss_sorter(level_sols)
     level_sols2 = map(sol -> merge(sol, get_gap_derivatives(hamfunc, c, sol.sol)), level_sols)
     push!(level_data, level_sols2)
+    # non-degenerate branch
+    nodeg_sols = [solve(prob, BestOf(best_algs()[1:end-2]); minexcgap, maxiters=10000, MaxTime=MaxTime / 3, exps=[-10], initials=[2.0, ε0 + 0.1], ranges=nodeg_ranges)]
+    nodeg_sols = ss_sorter(nodeg_sols)
+    nodeg_sols2 = map(sol -> merge(sol, get_gap_derivatives(hamfunc, c, sol.sol)), nodeg_sols)
+    push!(nodeg_data, nodeg_sols2)
 end
 ##
-let phase_data = map(x -> x[1], phase_data), level_data = map(x -> x[1], level_data)
-    p_LD = plot(δε2s, map(x -> LDbdg(x.optsol), phase_data), markers=true, ylabel="LD", xlabel="δε2", label="Inhomogeneous phase branch", ylims=(0, 1))
-    plot!(δε2s, map(x -> LDbdg(x.optsol), level_data), markers=true, ylabel="LD", xlabel="δε2", label="Inhomogeneous level branch")
+let phase_data = map(x -> x[1], phase_data), level_data = map(x -> x[1], level_data), plot = Plots.plot, plot! = Plots.plot!, target = LDbdg
+    p_LD = plot(δε2s, map(x -> target(x.optsol), phase_data), markers=true, ylabel="LD", xlabel="δε2", label="Inhomogeneous phase branch", ylims=(0, 1))
+    plot!(δε2s, map(x -> target(x.optsol), level_data), markers=true, ylabel="LD", xlabel="δε2", label="Inhomogeneous level branch")
     # scatter!([0], [LDbdg(ss.optsol)], c=:red, label="homogeneous")
     hline!([LDbdg(homogeneous_ss2.optsol)], label="2 site sweet spot", lw=2, ls=:dash)
     p_excgap = plot(δε2s, map(x -> x.optsol.excgap, phase_data), markers=true, ylabel="excgap", xlabel="δε2", label="Inhomogeneous phase branch", ylims=(0, 0.3))
@@ -104,10 +108,93 @@ let phase_data = map(x -> x[1], phase_data), level_data = map(x -> x[1], level_d
 
     # plot(p_LD, p_excgap, p_params)#, layout=(1, 2))
     plot(p_LD, p_excgap, layout=(1, 2))
-    # plot(p_LD, p_excgap, p_gap_der, p_gap, p_params, layout=(3, 2), size=(800, 800))
+    plot(p_LD, p_excgap, p_gap_der, p_gap, p_params, layout=(3, 2), size=(800, 800))
 end
 ##
 savefig("inhomogeneous_sweet_spot_3site.png")
+##
+using CairoMakie
+# function branch_plot!(ax, δε2s, phase_data, level_data, two_site, target)
+function branch_plot!(ax, δε2s, datas, two_site, target)
+    strokewidth = 1
+    markersize = 10
+    markers = [:circle, :rect, :(+)]
+    # phase_marker = :circle#:vline #'▌'
+    # level_marker = :rect#:hline #'▬'
+    targets = map(data -> map(target, data), datas)
+    colors = Makie.wong_colors()[[1, 3, 4]]
+
+    figs = [CairoMakie.scatterlines!(ax, δε2s, data; color=color, marker=marker, strokewidth, markersize) for (data, color, marker) in zip(targets, colors, markers)]
+    f_2s = hlines!(ax, [target(two_site)], label="2 site sweet spot", linewidth=2, linestyle=:dash, color=:black)
+    f_homogeneous = vlines!(ax, [0]; color=:red, linestyle=:dot)
+
+    return figs, f_2s, f_homogeneous
+end
+
+branch_fig = let phase_data = map(x -> x[1], phase_data), level_data = map(x -> x[1], level_data), nodeg_data = map(x -> x[1], nodeg_data)
+    with_theme(theme_latexfonts()) do
+        fig = Figure(size=0.7 .* (600, 400), fontsize=15)
+        g = fig[1, 1] = GridLayout()
+        gl = fig[1, 2] = GridLayout()
+
+        xticks = LinearTicks(4)
+        ax1 = Axis(g[1, 1]; xlabel=L"δε_2", ylabel="LD", xticks)
+        ax2 = Axis(g[2, 1]; xlabel=L"δε_2", ylabel="Excitation gap", xticks)
+        linkxaxes!(ax1, ax2)
+        hidexdecorations!(ax1; ticks=true, grid=false)
+        CairoMakie.ylims!(ax1, (0, 1))
+
+        fs_ld, f_ld_2s, f_ld_homogeneous = branch_plot!(ax1, δε2s, [phase_data, level_data, nodeg_data], homogeneous_ss2, x -> target(x.optsol))
+        fs_excgap, f_excgap_2s, f_excgap_homogeneous = branch_plot!(ax2, δε2s, [phase_data, level_data, nodeg_data], homogeneous_ss2, x -> x.optsol.excgap)
+
+
+        Legend(gl[1, 1],
+            [fs_ld..., f_ld_2s, f_ld_homogeneous],
+            [["Phase branch", "Level branch", "Topological"][1:length(fs_ld)]..., "Two-site", "Homogeneous"])
+        colsize!(fig.layout, 2, 100)
+        rowgap!(g, 1, 5)
+        fig
+    end
+end
+branch_fig2 = let phase_data = map(x -> x[1], phase_data), level_data = map(x -> x[1], level_data), nodeg_data = map(x -> x[1], nodeg_data)
+    with_theme(theme_latexfonts()) do
+        fig = Figure(size=0.75 .* (800, 400), fontsize=18)
+        # g = fig[1:2, 1] = GridLayout()
+        gl = fig[1:2, 1] = GridLayout()
+        gr = fig[1:2, 2] = GridLayout()
+        # grt = fig[1:2, 2] = GridLayout()
+        # grb = fig[2, 2] = GridLayout()
+        # gl = fig[1, 2] = GridLayout()
+        xticks = LinearTicks(4)
+        ax1 = Axis(gl[1, 1]; xlabel=L"δε_2", ylabel="||∂δE/∂x⃗ ||")
+        ax2 = Axis(gl[2, 1]; xlabel=L"δε_2", ylabel="δϕ", yticks=(pi * [0, 1 / 2, 1], ["0", L"\frac{\pi}{2}", "π"]), xticks)
+        ax3 = Axis(gr[2, 1]; xlabel=L"δε_2", ylabel=L"ε_{13}", xticks)
+        linkxaxes!(ax1, ax2, ax3)
+        hidexdecorations!(ax1; ticks=true, grid=false)
+        CairoMakie.ylims!(ax1, (0, 0.75))
+        CairoMakie.ylims!(ax2, (0, pi))
+
+        fs_ld, f_ld_2s, f_ld_homogeneous = branch_plot!(ax1, δε2s, [phase_data, level_data, nodeg_data], homogeneous_ss2, x -> norm(x.gradient))
+        branch_plot!(ax2, δε2s, [phase_data, level_data, nodeg_data], homogeneous_ss2, x -> (x.sol[1]))
+        branch_plot!(ax3, δε2s, [phase_data, level_data, nodeg_data], homogeneous_ss2, x -> (x.sol[2]))
+
+        leg = Legend(gr[1, 1],
+            [fs_ld..., f_ld_2s, f_ld_homogeneous],
+            ["Phase branch", "Level branch", "Topological", "Two-site sweet spot", "Homogeneous"])
+        leg.tellwidth = false
+        # colsize!(fig.layout, 2, 150)
+        # rowsize!(gr, 2, 75)
+        # colsize!(fig.layout, 2, 150)
+        # rowgap!(g, 1, 5)
+        fig
+    end
+end
+##
+CairoMakie.save(plotsdir("sweet_spot_branches.png"), branch_fig; px_per_unit=10)
+##
+CairoMakie.save(plotsdir("sweet_spot_branches_appendix.png"), branch_fig2; px_per_unit=10)
+
+
 ##
 for n in [3, 5, 10] # Look at tuning plot for these detunings
     let k = n, hamfunc, a, data_p1, data = map(x -> x[1], data)
@@ -188,10 +275,10 @@ for Ez in Ezs
     exps = range(0.1, 3, 4)
     MaxTime = 0.5
     initials = [2.2, sqrt(fixedparams.Ez^2 - fixedparams.Δ^2)]#2.95]
-    homogeneous_ss2 = find_sweet_spot((f2, f2!, cache2), c2, Hδϕ_Hε(); exps, MaxTime, target, minexcgap=0, alg=BestOf(best_algs()[1:end-1]), initials)
+    homogeneous_ss2 = find_sweet_spot((f2, f2!, cache2), c2, Hδϕ_Hε(); exps, MaxTime, target, minexcgap=0, alg=BestOf(best_algs()[1:end-2]), initials)
     f, f!, cache = hamfunc(Rδϕ_Rε(), c, fixedparams)
     fh, fh!, cacheh = hamfunc(Hδϕ_Hε(), c, fixedparams)
-    homogeneous_ss = find_sweet_spot((fh, fh!, cacheh), c, Hδϕ_Hε(); exps, MaxTime, target, minexcgap=0, alg=BestOf(best_algs()[1:end-1]), initials)
+    homogeneous_ss = find_sweet_spot((fh, fh!, cacheh), c, Hδϕ_Hε(); exps, MaxTime, target, minexcgap=0, alg=BestOf(best_algs()[1:end-2]), initials)
     # δϕ0 = homogeneous_ss.sol[1]
     push!(sweet_spots_Ez3, merge(homogeneous_ss, get_gap_derivatives(fh, c, homogeneous_ss.sol)))
     push!(sweet_spots_Ez2, merge(homogeneous_ss2, get_gap_derivatives(f2, c2, homogeneous_ss2.sol)))
@@ -208,7 +295,7 @@ plot(p_Ez_excgap, p_Ez_LD)
 inhomo_sols = []
 for k in eachindex(Ezs)
     fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0, Δ=1, U=0, Ez=Ezs[k])
-    alg = BestOf(best_algs()[1:end-1])
+    alg = BestOf(best_algs()[1:end-2])
     f, f!, cache = hamfunc(Rδϕ_Rε(), c, fixedparams)
     minexcgap = sweet_spots_Ez3[k].optsol.excgap * 0.1
     δϕ0, ε0 = sweet_spots_Ez3[k].sol |> collect

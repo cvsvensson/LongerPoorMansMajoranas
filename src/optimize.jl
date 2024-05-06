@@ -52,8 +52,8 @@ cost_excgap(excgap, minexcgap, exp) = ((excgap - minexcgap) < 0 ? 1.0 + 10.0^exp
 cost_gap(gap, exp) = 10.0^(exp) * abs(gap)
 cost_reduced(reduced) = reduced^2
 
-best_algs() = [BBO_probabilistic_descent(), BBO_generating_set_search(), BBO_adaptive_de_rand_1_bin_radiuslimited(), Metaheuristics.DE(), Optim.NelderMead(), Optim.ConjugateGradient()] #Optim.IPNewton(), Metaheuristics.SA(),
-best_alg_names() = string.([:BBO_probabilistic_descent, :BBO_generating_set_search, :BBO_adaptive_de_rand_1_bin_radiuslimited, :Metaheuristics_DE, :Optim_NelderMead, :Optim_ConjugateGradient]) #:Optim_IPNewton, :Metaheuristics_SA,
+best_algs() = [BBO_probabilistic_descent(), BBO_generating_set_search(), BBO_adaptive_de_rand_1_bin_radiuslimited(), Optim.NelderMead(), Metaheuristics.DE(), Optim.ConjugateGradient()] #Optim.IPNewton(), Metaheuristics.SA(),
+best_alg_names() = string.([:BBO_probabilistic_descent, :BBO_generating_set_search, :BBO_adaptive_de_rand_1_bin_radiuslimited, :Optim_NelderMead, :Metaheuristics_DE, :Optim_ConjugateGradient]) #:Optim_IPNewton, :Metaheuristics_SA,
 function decompose_rϕε(ps, N=div(2length(ps), 3))
     Nhalf = div(N + 1, 2)
     Nhalf2 = div(N, 2)
