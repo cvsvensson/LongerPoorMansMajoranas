@@ -2330,19 +2330,15 @@ version = "2.9.4"
 
 [[deps.QuantumDots]]
 deps = ["AbstractDifferentiation", "AxisKeys", "BlockDiagonals", "Crayons", "Dictionaries", "LinearAlgebra", "LinearMaps", "Reexport", "SciMLBase", "SkewLinearAlgebra", "SparseArrays", "SplitApplyCombine", "StaticArrays"]
-git-tree-sha1 = "66e3531a05c093211eb8972f0edccdf68987e620"
+git-tree-sha1 = "dd9340888049916ef625903bd1a3768264840391"
 repo-rev = "main"
 repo-url = "https://github.com/cvsvensson/QuantumDots.jl"
 uuid = "312194fd-fec5-4b07-ba1c-a40d7013a56a"
-version = "0.8.15"
+version = "0.9.0"
+weakdeps = ["Symbolics"]
 
     [deps.QuantumDots.extensions]
     QuantumDotsSymbolicsExt = "Symbolics"
-    QuantumDotsUnicodePlotsExt = "UnicodePlots"
-
-    [deps.QuantumDots.weakdeps]
-    Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
-    UnicodePlots = "b8865327-cd53-5732-bb35-84acbb429228"
 
 [[deps.REPL]]
 deps = ["InteractiveUtils", "Markdown", "Sockets", "Unicode"]
@@ -2387,9 +2383,9 @@ version = "0.6.12"
 
 [[deps.RecursiveArrayTools]]
 deps = ["Adapt", "ArrayInterface", "DocStringExtensions", "GPUArraysCore", "IteratorInterfaceExtensions", "LinearAlgebra", "RecipesBase", "SparseArrays", "StaticArraysCore", "Statistics", "SymbolicIndexingInterface", "Tables"]
-git-tree-sha1 = "6305b6fe0391eeb4f280a4a403ac0c350b82c718"
+git-tree-sha1 = "f599a896fb28043dd63a4d372231dfcbdd117394"
 uuid = "731186ca-8d62-57ce-b412-fbd966d074cd"
-version = "3.15.0"
+version = "3.16.0"
 
     [deps.RecursiveArrayTools.extensions]
     RecursiveArrayToolsFastBroadcastExt = "FastBroadcast"
@@ -2960,9 +2956,9 @@ uuid = "0796e94c-ce3b-5d07-9a54-7f471281c624"
 version = "0.5.29"
 
 [[deps.TranscodingStreams]]
-git-tree-sha1 = "71509f04d045ec714c4748c785a59045c3736349"
+git-tree-sha1 = "5d54d076465da49d6746c647022f3b3674e64156"
 uuid = "3bb67fe8-82b1-5028-8e26-92a6c54297fa"
-version = "0.10.7"
+version = "0.10.8"
 weakdeps = ["Random", "Test"]
 
     [deps.TranscodingStreams.extensions]
