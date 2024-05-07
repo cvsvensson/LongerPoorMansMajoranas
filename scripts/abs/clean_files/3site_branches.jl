@@ -177,6 +177,7 @@ branch_fig2 = let phase_data = map(x -> x[1], phase_data), level_data = map(x ->
         fs_ld, f_ld_2s, f_ld_homogeneous = branch_plot!(ax1, δε2s, [phase_data, level_data, nodeg_data], homogeneous_ss2, x -> norm(x.gradient))
         branch_plot!(ax2, δε2s, [phase_data, level_data, nodeg_data], homogeneous_ss2, x -> (x.sol[1]))
         branch_plot!(ax3, δε2s, [phase_data, level_data, nodeg_data], homogeneous_ss2, x -> (x.sol[2]))
+        # branch_plot!(ax3, δε2s, [phase_data, level_data, nodeg_data], homogeneous_ss2, x -> (x.optsol.gap))
 
         leg = Legend(gr[1, 1],
             [fs_ld..., f_ld_2s, f_ld_homogeneous],
