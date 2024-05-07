@@ -1,13 +1,6 @@
 using DrWatson
 @quickactivate :LongerPoorMansMajoranas
 using QuantumDots, QuantumDots.BlockDiagonals, LinearAlgebra#, BlackBoxOptim
-using Plots
-using Symbolics
-using Folds
-using Accessors
-using JLD2
-using DataFrames
-using LaTeXStrings
 using Test
 ## Consistency between bdg and many-body
 @testset "Consistency between bdg and many-body" begin
@@ -23,8 +16,9 @@ using Test
 
     sol = fullsolve(cache, c)
     solbdg = fullsolve(cachebdg, cbdg)
-    
+
     @test collect(sol.reduced.fermions) ≈ collect(solbdg.reduced.fermions)
     @test collect(sol.reduced.cells_bdg) ≈ collect(solbdg.reduced.cells_bdg)
     @test (sol.mps.singles[1].mpu ≈ solbdg.mps.singles[1].mpu)
+    @test collect(sol.reduced.two_cells_bdg) ≈ collect(solbdg.reduced.two_cells_bdg)
 end

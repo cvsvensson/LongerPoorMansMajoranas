@@ -46,7 +46,7 @@ prob = OptProb(; hamfunc=hf, basis=c, optparams=Hδϕ_Hε(), target)
 ss_sol = solve(prob, BestOf(best_algs()[1:end-1]); minexcgap=0, maxiters=10000, MaxTime=10, exps=range(-1, 4, 6))
 ss_sol2 = solve(prob, BestOf(best_algs()[1:end-1]); minexcgap=0, maxiters=10000, MaxTime=10, exps=[-10])
 ##
-wsave(datadir("final_data", "3-site-tuning.jld2"), Dict("data"=>data, "ss_deg"=> ss_sol, "ss_nodeg" => ss_sol2))
+wsave(datadir("final_data", "3-site-tuning.jld2"), Dict("data" => data, "ss_deg" => ss_sol, "ss_nodeg" => ss_sol2))
 ##
 sweet_spots = [[2.81, 1.4], [2.9, 1.825], [2.945, 2.2], reverse(ss_sol.sol), reverse(ss_sol2.sol)]
 sweet_spot_fs = mapfunc.(reverse.(sweet_spots))
@@ -64,12 +64,12 @@ fig = with_theme(theme_latexfonts()) do
     colorrange = 0.1 .* (-1, 1)
     levels = 0.1 * range(-1, 1, 15)
 
-    f_econtour = contourf!(ax, εs, δϕs, map(x -> x.gap, data)'; linewidth, levels, linestyle=contourstyle, colormap=_contourcolormap, colorrange)
-    hmap = heatmap!(ax, εs, δϕs, map(target, data)'; colormap=Reverse(:viridis), colorscale=identity, colorrange=(0, 1))
+    f_econtour = CairoMakie.contourf!(ax, εs, δϕs, map(x -> x.gap, data)'; linewidth, levels, linestyle=contourstyle, colormap=_contourcolormap, colorrange)
+    hmap = CairoMakie.heatmap!(ax, εs, δϕs, map(target, data)'; colormap=Reverse(:viridis), colorscale=identity, colorrange=(0, 1))
 
-    _f_econtour = contour!(ax, εs, δϕs, map(x -> x.gap, data)'; linewidth, levels, linestyle=contourstyle, colormap=_contourcolormap, colorrange)
+    _f_econtour = CairoMakie.contour!(ax, εs, δϕs, map(x -> x.gap, data)'; linewidth, levels, linestyle=contourstyle, colormap=_contourcolormap, colorrange)
 
-    contour!(ax, εs, δϕs, map(x -> x.gap, data)'; linewidth, levels=[0], color=cgrad(contourcolormap, 3, categorical=true)[2])
+    CairoMakie.contour!(ax, εs, δϕs, map(x -> x.gap, data)'; linewidth, levels=[0], color=cgrad(contourcolormap, 3, categorical=true)[2])
 
     # f_E0 = lines!(ax, Float64[], Float64[]; linewidth, color=levelcolors[2])
     # f_Es = lines!(ax, Float64[], Float64[]; linewidth, linestyle=:dash, color=levelcolors[1])
@@ -77,7 +77,7 @@ fig = with_theme(theme_latexfonts()) do
     markers = [:vline, :cross, :hline, :x][1:3]
     colors = fill(:crimson, 3)#[:red, :red, :red]#[:aqua, :red, :aqua]
     markersizes = [30, 20, 30]
-    f_ss = [scatter!(ax, first(ss), last(ss); marker, markersize, strokewidth=1, color) for (ss, marker, color, markersize) in zip(sweet_spots, markers, colors, markersizes)]
+    f_ss = [CairoMakie.scatter!(ax, first(ss), last(ss); marker, markersize, strokewidth=1, color) for (ss, marker, color, markersize) in zip(sweet_spots, markers, colors, markersizes)]
 
     #axislegend(ax, [f_E0, f_Es], ["δE = 0", "δE = 0.01Δ"], position=:lb, labelsize=17)
     axislegend(ax, f_ss, ["Phase protection", "\"Topological\"", "Level protection", "Sweet spot"][1:length(f_ss)], position=:rb, labelsize=13, titlesize=13)

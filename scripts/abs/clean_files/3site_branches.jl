@@ -138,14 +138,15 @@ branch_fig = let phase_data = map(x -> x[1], phase_data), level_data = map(x -> 
         gl = fig[1, 2] = GridLayout()
 
         xticks = LinearTicks(4)
-        ax1 = Axis(g[1, 1]; xlabel=L"δε_2", ylabel="LD", xticks)
-        ax2 = Axis(g[2, 1]; xlabel=L"δε_2", ylabel="Excitation gap", xticks)
+        ax1 = Axis(g[1, 1]; xlabel=L"δε_2/Δ", ylabel="LD", xticks)
+        ax2 = Axis(g[2, 1]; xlabel=L"δε_2/Δ", ylabel="Excitation gap", xticks)
         linkxaxes!(ax1, ax2)
         hidexdecorations!(ax1; ticks=true, grid=false)
         CairoMakie.ylims!(ax1, (0, 1))
 
         fs_ld, f_ld_2s, f_ld_homogeneous = branch_plot!(ax1, δε2s, [phase_data, level_data, nodeg_data], homogeneous_ss2, x -> target(x.optsol))
         fs_excgap, f_excgap_2s, f_excgap_homogeneous = branch_plot!(ax2, δε2s, [phase_data, level_data, nodeg_data], homogeneous_ss2, x -> x.optsol.excgap)
+        # fs_excgap, f_excgap_2s, f_excgap_homogeneous = branch_plot!(ax3, δε2s, [phase_data, level_data, nodeg_data], homogeneous_ss2, x -> x.optsol.gap)
 
 
         Legend(gl[1, 1],
@@ -158,7 +159,7 @@ branch_fig = let phase_data = map(x -> x[1], phase_data), level_data = map(x -> 
 end
 branch_fig2 = let phase_data = map(x -> x[1], phase_data), level_data = map(x -> x[1], level_data), nodeg_data = map(x -> x[1], nodeg_data)
     with_theme(theme_latexfonts()) do
-        fig = Figure(size=0.75 .* (800, 400), fontsize=18)
+        fig = Figure(size=0.75 .* (800, 500), fontsize=20)
         # g = fig[1:2, 1] = GridLayout()
         gl = fig[1:2, 1] = GridLayout()
         gr = fig[1:2, 2] = GridLayout()
@@ -166,9 +167,9 @@ branch_fig2 = let phase_data = map(x -> x[1], phase_data), level_data = map(x ->
         # grb = fig[2, 2] = GridLayout()
         # gl = fig[1, 2] = GridLayout()
         xticks = LinearTicks(4)
-        ax1 = Axis(gl[1, 1]; xlabel=L"δε_2", ylabel="||∂δE/∂x⃗ ||")
-        ax2 = Axis(gl[2, 1]; xlabel=L"δε_2", ylabel="δϕ", yticks=(pi * [0, 1 / 2, 1], ["0", L"\frac{\pi}{2}", "π"]), xticks)
-        ax3 = Axis(gr[2, 1]; xlabel=L"δε_2", ylabel=L"ε_{13}", xticks)
+        ax1 = Axis(gl[1, 1]; xlabel=L"δε_2/Δ", ylabel="||∂δE/∂x⃗ ||")
+        ax2 = Axis(gl[2, 1]; xlabel=L"δε_2/Δ", ylabel="δϕ", yticks=(pi * [0, 1 / 2, 1], ["0", L"\frac{\pi}{2}", "π"]), xticks)
+        ax3 = Axis(gr[2, 1]; xlabel=L"δε_2/Δ", ylabel=L"ε_{13}", xticks)
         linkxaxes!(ax1, ax2, ax3)
         hidexdecorations!(ax1; ticks=true, grid=false)
         CairoMakie.ylims!(ax1, (0, 0.75))
@@ -190,15 +191,44 @@ branch_fig2 = let phase_data = map(x -> x[1], phase_data), level_data = map(x ->
         fig
     end
 end
+branch_fig3 = let phase_data = map(x -> x[1], phase_data), level_data = map(x -> x[1], level_data), nodeg_data = map(x -> x[1], nodeg_data)
+    with_theme(theme_latexfonts()) do
+        fig = Figure(size=0.75 .* (800, 500), fontsize=20)
+        gl = fig[1:2, 1] = GridLayout()
+        gr = fig[1:2, 2] = GridLayout()
+        xticks = LinearTicks(4)
+
+        ax1 = Axis(gl[1, 1]; xlabel=L"δε_2/Δ", ylabel="LD", xticks)
+        ax2 = Axis(gl[2, 1]; xlabel=L"δε_2/Δ", ylabel="Excitation gap", xticks)
+        hidexdecorations!(ax1; ticks=true, grid=false)
+        CairoMakie.ylims!(ax1, (0, .75))
+        ax3 = Axis(gr[2, 1]; xlabel=L"δε_2/Δ", ylabel="δE/Δ", xticks)
+        linkxaxes!(ax1, ax2, ax3)
+        datas = [phase_data, level_data, nodeg_data]
+        fs, f_2s, f_homogeneous = branch_plot!(ax1, δε2s, datas, homogeneous_ss2, x -> target(x.optsol))
+        branch_plot!(ax2, δε2s, datas, homogeneous_ss2, x -> (x.optsol.excgap))
+        branch_plot!(ax3, δε2s, datas, homogeneous_ss2, x -> (x.optsol.gap))
+
+        leg = Legend(gr[1, 1],
+            [fs..., f_2s, f_homogeneous],
+            ["Phase branch", "Level branch", "Topological", "Two-site sweet spot", "Homogeneous"])
+        leg.tellwidth = false
+        # colsize!(fig.layout, 2, 150)
+        # rowsize!(gr, 2, 75)
+        # colsize!(fig.layout, 2, 150)
+        # rowgap!(g, 1, 5)
+        fig
+    end
+end
 ##
-CairoMakie.save(plotsdir("sweet_spot_branches.png"), branch_fig; px_per_unit=10)
+CairoMakie.save(plotsdir("sweet_spot_branches3.png"), branch_fig3; px_per_unit=10)
 ##
 CairoMakie.save(plotsdir("sweet_spot_branches_appendix.png"), branch_fig2; px_per_unit=10)
 
 
 ##
-for n in [3, 5, 10] # Look at tuning plot for these detunings
-    let k = n, hamfunc, a, data_p1, data = map(x -> x[1], data)
+for n in [14, 15] # Look at tuning plot for these detunings
+    let k = n, hamfunc, a, data_p1, data = map(x -> x[1], nodeg_data)
         a = FermionBdGBasis(1:3)
         δε2 = δε2s[k]
         δϕ, ε1 = data[k].sol
@@ -248,20 +278,20 @@ for n in [3, 5, 10] # Look at tuning plot for these detunings
         # p2 = plot_f(dp1, x -> norm(x.gradient[2]) / LDf(x), clim_max=2, c=:redsblues, ss_label="3-site sweet spot", legend=:bottomright)
         # p1 = plot_f(d, x -> x.excgap, clim_max=.25, c=:viridis, ss_label="3-site sweet spot", legend = false)
         # p2 = plot_f(dp1, x -> x.excgap, clim_max=.25, c=:viridis, ss_label="3-site sweet spot")
-        p3 = heatmap(εs, δϕs, map(x -> abs(x.t_aa[1]) - abs(x.Δ_aa[1]), data_coeffs), c=:redsblues, clims=0.1 .* (-1, 1))
-        p4 = heatmap(εs, δϕs, map(x -> abs(x.Δ_nn) * angle(x.Δ_nn), data_coeffs), c=:redsblues, clims=0.001 .* (-1, 1))
-        p5 = heatmap(εs, δϕs, map(x -> abs(x.t_nn) - abs(x.Δ_nn), data_coeffs), c=:redsblues, clims=0.1 .* (-1, 1))
-        p6 = heatmap(εs, δϕs, map(x -> (x.ε_ba + x.ε_ab + x.ε0[2])^2 + (x.ε_ab + x.ε0[1])^2, data_coeffs), c=:redsblues, clims=0.01 .* (0, 1))
+        p3 = Plots.heatmap(εs, δϕs, map(x -> abs(x.t_aa[1]) - abs(x.Δ_aa[1]), data_coeffs), c=:redsblues, clims=0.1 .* (-1, 1))
+        p4 = Plots.heatmap(εs, δϕs, map(x -> abs(x.Δ_nn) * angle(x.Δ_nn), data_coeffs), c=:redsblues, clims=0.001 .* (-1, 1))
+        p5 = Plots.heatmap(εs, δϕs, map(x -> abs(x.t_nn) - abs(x.Δ_nn), data_coeffs), c=:redsblues, clims=0.1 .* (-1, 1))
+        p6 = Plots.heatmap(εs, δϕs, map(x -> (x.ε_ba + x.ε_ab + x.ε0[2])^2 + (x.ε_ab + x.ε0[1])^2, data_coeffs), c=:redsblues, clims=0.01 .* (0, 1))
 
 
         # p = heatmap(εs, δϕs, map(x -> LDbdg(x), newdata)', c=:viridis, clims=(0, 1), xlabel="ε1", ylabel="δϕ", title="LD, 3 site, inhomogeneous")
 
-        scatter!(p3, [ε1], [δϕ], c=:red)
-        scatter!(p4, [ε1], [δϕ], c=:red)
-        scatter!(p5, [ε1], [δϕ], c=:red)
-        scatter!(p6, [ε1], [δϕ], c=:red)
+        Plots.scatter!(p3, [ε1], [δϕ], c=:red)
+        Plots.scatter!(p4, [ε1], [δϕ], c=:red)
+        Plots.scatter!(p5, [ε1], [δϕ], c=:red)
+        Plots.scatter!(p6, [ε1], [δϕ], c=:red)
         # p
-        plot(p1, p2, p3, p4, p5, p6, plot_title="δε2 = $δε2", layout=(3, 2), size=(800, 1200)) |> display
+        Plots.plot(p1, p2, p3, p4, p5, p6, plot_title="δε2 = $δε2", layout=(3, 2), size=(800, 1200)) |> display
     end
 end
 ##

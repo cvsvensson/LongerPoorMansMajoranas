@@ -66,16 +66,22 @@ function reduced_similarity(basis, oddvec::AbstractVector, evenvec)
     labels = cell_labels(basis)
 
     cells = map(n -> norm(partial_trace(δρ, labels(n), basis), 2), spatial_labels(basis))
-    cells2 = map((n1, n2) -> norm(partial_trace(δρ, sort(union(labels(n1), labels(n2)); by=last), basis), 2), spatial_labels(basis), Iterators.drop(spatial_labels(basis), 1))
+    two_cells = map((n1, n2) -> norm(partial_trace(δρ, sort(union(labels(n1), labels(n2)); by=last), basis), 2), spatial_labels(basis), Iterators.drop(spatial_labels(basis), 1))
 
     local_fermions(n) = reduce(vcat, [basis[l], basis[l]'] for l in labels(n))
-    nf = sqrt(2^QuantumDots.nbr_of_fermions(basis))
+    # nf = sqrt(2^QuantumDots.nbr_of_fermions(basis))
     cells_bdg = QuantumDots.Dictionary(spatial_labels(basis), [sqrt(sum(abs2, tr(δρ * (f1 * f2)) for (f1, f2) in Base.product(local_fermions(n), local_fermions(n)))) for n in spatial_labels(basis)])
     cells_bdg2 = QuantumDots.Dictionary(spatial_labels(basis), [norm(one_particle_density_matrix(δρ, basis, labels(n))) for n in spatial_labels(basis)])
 
     fermions_opdm = QuantumDots.Dictionary(keys(basis), [norm([tr(δρ * (f' * f)), tr(δρ * (f * f'))]) for f in basis])
 
-    return (; fermions, cells, cells2, cells_bdg, cells_bdg2, fermions_opdm)
+    function two_cell_bdg(n)
+        return norm(one_particle_density_matrix(δρ, basis, [labels(n)..., labels(n + 1)...]))
+    end
+    two_cells_bdg = QuantumDots.Dictionary(spatial_labels(basis)[1:end-1], [two_cell_bdg(n) for n in spatial_labels(basis)[1:end-1]])
+
+
+    return (; fermions, cells, two_cells, cells_bdg, cells_bdg2, two_cells_bdg, fermions_opdm)
 end
 
 function reduced_similarity(qps::AbstractVector{<:QuantumDots.QuasiParticle})
@@ -90,8 +96,13 @@ function reduced_similarity(qps::AbstractVector{<:QuantumDots.QuasiParticle})
     #cell_matrices = (; even=map(n -> ρeven[cinds(n), cinds(n)], 1:div(N, 2)), odd=map(n -> ρodd[cinds(n), cinds(n)], 1:div(N, 2)))
     nf = 1#sqrt(2^N)
     fermions = QuantumDots.Dictionary(labels, [norm(ρeven[[n, n + N], [n, n + N]] - ρodd[[n, n + N], [n, n + N]]) for n in 1:length(labels)])
-    cells_bdg = QuantumDots.Dictionary(1:div(N, 2), [norm(ρeven[cinds(n), cinds(n)] - ρodd[cinds(n), cinds(n)]) / nf for n in 1:div(N, 2)])
-    return (; fermions, cells_bdg)#, cell_matrices)
+    cells_bdg = QuantumDots.Dictionary(1:div(N, 2), [norm(ρeven[cinds(n), cinds(n)] - ρodd[cinds(n), cinds(n)]) for n in 1:div(N, 2)])
+    function two_cell_bdg(n)
+        inds = vcat(cinds(n), cinds(n + 1))
+        return norm(ρeven[inds, inds] - ρodd[inds, inds])
+    end
+    two_cells_bdg = QuantumDots.Dictionary(1:div(N, 2)-1, [two_cell_bdg(n) for n in 1:div(N, 2)-1])
+    return (; fermions, cells_bdg, two_cells_bdg)#, cell_matrices)
 end
 
 function get_majorana_polarizations(majcoeffs, basis)

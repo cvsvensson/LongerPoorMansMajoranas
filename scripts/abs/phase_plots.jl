@@ -1,7 +1,7 @@
 
 function plot_ss!(p, ss, N; kwargs...)
     ss_pos = ss.sol
-    scatter!(p, [ss_pos[2]], [ss_pos[1]]; markersize=5, color=:red, kwargs...)
+    Plots.scatter!(p, [ss_pos[2]], [ss_pos[1]]; markersize=5, color=:red, kwargs...)
 end
 plot_ss!(p, ss::Union{Nothing,Missing}, N) = nothing
 function plot_LD(data; clims=missing)
@@ -44,8 +44,8 @@ function ticks_length!(; tl=0.02)
     sz = p.attr[:size]
     r = sz[1] / sz[2]
     dx, dy = tl * (xl[2] - xl[1]), tl * r * (yl[2] - yl[1])
-    plot!([xticks xticks]', [y1 y1 .+ dy]', c=:black, labels=false)
-    plot!([x1 x1 .+ dx]', [yticks yticks]', c=:black, labels=false, xlims=xl, ylims=yl)
+    Plots.plot!([xticks xticks]', [y1 y1 .+ dy]', c=:black, labels=false)
+    Plots.plot!([x1 x1 .+ dx]', [yticks yticks]', c=:black, labels=false, xlims=xl, ylims=yl)
     return Plots.current()
 end
 
@@ -67,12 +67,12 @@ function plot_f(data, f; clim_max=1, clims=missing, frame=:box, plot_ss=true, le
 
     clims = ismissing(clims) ? (0minimum(levels) - 1e-12, clim_max) : clims
 
-    p = heatmap(x, y, z; clims, xlabel, ylabel, frame, xlims, ylims, kwargs...)
+    p = Plots.heatmap(x, y, z; clims, xlabel, ylabel, frame, xlims, ylims, kwargs...)
     ticks_length!(tl=0.015)
     zgap = map(x -> x.gap, data["data"])
-    foreach((l, c) -> contour!(p, x, y, abs.(zgap); levels=[l], c), levels[[1, 3]], colors[[1, 3]])
-    contour!(p, x, y, zgap; levels=[0.0], c=colors[2], clims)
-    foreach((l, c) -> plot!(p, last(x) .* [1, 1] .+ 0.1, [0, 0]; leg_title="|δE|", c, label=l), titles, colors)
+    foreach((l, c) -> Plots.contour!(p, x, y, abs.(zgap); levels=[l], c), levels[[1, 3]], colors[[1, 3]])
+    Plots.contour!(p, x, y, zgap; levels=[0.0], c=colors[2], clims)
+    foreach((l, c) ->Plots.plot!(p, last(x) .* [1, 1] .+ 0.1, [0, 0]; leg_title="|δE|", c, label=l), titles, colors)
     #contour!(p, x, y, zgap; levels=range(-1, 1, 50))
     if plot_ss
         plot_ss!(p, data["ss"], data["N"]; label=ss_label)
