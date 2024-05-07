@@ -24,7 +24,6 @@ function bdgH(k, ε, (t1, t2), (Δ1, Δ2))#, paulis=paulis)
     hs = getHs(k, ε, (t1, t2), (Δ1, Δ2))
     Hermitian(mapreduce(*, +, hs, paulis))
 end
-H₀(k, p) = bdgH(k, p[1], (p[2], p[3]), (p[4], p[5]))
 function bdgQ(k, ε, (t1, t2), (Δ1, Δ2), paulis=paulis)
     hs = getHs(k, ε, (t1, t2), (Δ1, Δ2))
     @SMatrix [hs[1]+hs[2] hs[4]+1im*hs[3]; hs[4]-1im*hs[3] hs[1]-hs[2]]
@@ -69,8 +68,13 @@ end
 @time energy_gap(0.5, (2exp(1im * pi / 4), 0), (1, 0))
 @code_warntype eigvals(bdgH(0.5, 0.5, (2exp(1im * pi / 4), 0), (1, 0)))[1]
 ##
-H(k) = H₀(k, (-1.0, 0.5))
-
+params = range(-2.0, 2.0, length=1001)
+# H₀(k, p) = bdgH(k, p[1], (p[2], p[3]), (p[4], p[5]))
+# Hk(k) = Matrix(H₀(k, (0.1, 1, 0, 1, 0)))
+# prob = BPProblem(Hk);
+prob = BPProblem((k, p) -> Matrix(bdgH(k, p[1], (p[2], 0), (1, 0))));
+@time calcPhaseDiagram(prob, range(-2.0, 2.0, length=50), range(-2.0, 2.0, length=50); plot=true)
+# sol = TopologicalNumbers.solve(prob)
 ##
 let ks = range(-pi, pi + 0.1, 100), f(k) = collect(eigvals(bdgH(k, 2, (exp(0.0 * 1im * pi / 4), 0), (1, 0)))), Df
     Df = x -> ForwardDiff.derivative(f, x)
@@ -85,8 +89,11 @@ end
 let ϕ = 0.0 * pi / 10
     ϵs = range(-4, 4, length=100)
     ts = range(0, 4, length=101)
-    data = [topoQ(eps, (exp(1im * ϕ) * t, 0), (1, 0); check=false) for eps in ϵs, t in ts]
-    data2 = [energy_gap(eps, (exp(1im * ϕ) * t, 0), (1, 0)) for eps in ϵs, t in ts]
+    Δ = (1, 0)
+    @time data = [topoQ(eps, (exp(1im * ϕ) * t, 0), Δ; check=false) for eps in ϵs, t in ts]
+    @time data2 = [energy_gap(eps, (exp(1im * ϕ) * t, 0), Δ) for eps in ϵs, t in ts]
+    prob = BPProblem((k, p) -> Matrix(bdgH(k, p[2], (exp(1im * ϕ) * p[1], 0), Δ)))
+    @time calcPhaseDiagram(prob, ts, ϵs; plot=true)
     p1 = heatmap(ts, ϵs, data, clims=(-1, 1), c=:redsblues, xlabel="t", ylabel="ε", title="Topological invariant")
     p2 = heatmap(ts, ϵs, data2, clims=(0, 1), c=:viridis, xlabel="t", ylabel="ε", title="Energy gap")
     plot(p1, p2)
@@ -128,6 +135,10 @@ function energy_gap(; first_order=false, ε, t, θ, Δ, Ez, δϕ, kwargs...)
     (; ε, t1, t2, Δ1, Δ2) = effective_coeffs(; ε, t, θ, Δ, Ez, δϕ)
     energy_gap(ε, first_order ? (t1, 0t2) : (t1, t2), first_order ? (Δ1, 0Δ2) : (Δ1, Δ2); kwargs...)
 end
+function bdgH(k; first_order=false, ε, t, θ, Δ, Ez, δϕ)
+    (; ε, t1, t2, Δ1, Δ2) = effective_coeffs(; ε, t, θ, Δ, Ez, δϕ)
+    bdgH(k, ε, first_order ? (t1, 0t2) : (t1, t2), first_order ? (Δ1, 0Δ2) : (Δ1, Δ2))
+end
 ##
 fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), Δ=1, Ez=3)
 ϵs = fixedparams.Ez - 0.1 .+ 0.4 .* range(-1, 1, length=150)
@@ -137,6 +148,10 @@ dataE1 = [energy_gap(; ε, first_order=true, δϕ, fixedparams...) for ε in ϵs
 dataQ1 = [topoQ(; first_order=true, ε, δϕ, fixedparams...) for ε in ϵs, δϕ in δϕs]
 dataE2 = [energy_gap(; ε, first_order=false, δϕ, fixedparams...) for ε in ϵs, δϕ in δϕs]
 dataQ2 = [topoQ(; first_order=false, ε, δϕ, fixedparams...) for ε in ϵs, δϕ in δϕs]
+prob1 = BPProblem((k, p) -> Matrix(bdgH(k; first_order=true, ε=p[2], δϕ=p[1], fixedparams...)))
+prob2 = BPProblem((k, p) -> Matrix(bdgH(k; first_order=false, ε=p[2], δϕ=p[1], fixedparams...)))
+@time dataTQ1 = calcPhaseDiagram(prob1, δϕs, ϵs; plot=true)
+@time dataTQ2 = calcPhaseDiagram(prob2, δϕs, ϵs; plot=true)
 ##
 p1E = heatmap(ϵs, δϕs, dataE1', clims=(1e-10, 1e-2), colorbar_scale=:identity, c=:viridis, xlabel="ε", ylabel="δϕ", title="Energy gap 1st order")
 p1Q = heatmap(ϵs, δϕs, dataQ1', clims=(-1, 1), c=:redsblues, xlabel="ε", ylabel="δϕ", title="Topological invariant")
