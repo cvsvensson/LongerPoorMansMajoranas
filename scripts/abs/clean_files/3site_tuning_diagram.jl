@@ -1,6 +1,6 @@
 using DrWatson
 @quickactivate :LongerPoorMansMajoranas
-using QuantumDots, QuantumDots.BlockDiagonals, LinearAlgebra#, BlackBoxOptim
+using QuantumDots, QuantumDots.BlockDiagonals, LinearAlgebra
 using JLD2
 using DataFrames
 using LaTeXStrings

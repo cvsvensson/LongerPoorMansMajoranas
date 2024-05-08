@@ -6,15 +6,34 @@ using DataFrames
 using LaTeXStrings
 using CairoMakie
 synceddir(args...) = joinpath(ENV["Dropbox"], "data", "LongerPoorMans", args...)
-includet(scriptsdir("abs", "phase_plots.jl"))
-includet(scriptsdir("abs", "phase_misc.jl"))
-load_full_data(N, folder, dir=synceddir) = wload(dir("phase_diagram", folder, "full_N=$(N)_fixedparams=(t = 0.5, θ = QuantumDots.DiffChainParameter{Float64}(2.746801533890032), V = 0, Δ = 1, U = 0.0, Ez = 3).jld2"))
+## Calculate data
+function get_sweet_spots(config)
+    @unpack N, fixedparams, exps, optparams, initials, ranges = config
+    bdg = iszero(fixedparams.U) && iszero(fixedparams.V)
+    iterations = length(exps)
+    c = bdg ? FermionBdGBasis(1:N, (:↑, :↓)) : FermionBasis(1:N, (:↑, :↓); qn=QuantumDots.parity)
+    alg = BestOf(best_algs())
+    target = bdg ? LDbdg : LD
+    f, f!, cache = hamfunc(optparams, c, fixedparams)
+    prob = ScheduledOptProb(x -> fullsolve(f!(cache, x), c), target, GapPenalty(exps))
+    prob_nodeg = ScheduledOptProb(x -> fullsolve(f!(cache, x), c), target)
+    kwargs = (; iterations, MaxTime=10 * sqrt(N), initials, ranges)
+    ss = solve(prob, alg; kwargs...)
+    ss_nodeg = solve(prob_nodeg, alg; kwargs...)
+    @strdict N fixedparams ss ss_nodeg optparams
+end
 ##
-Ns = 2:20
-data_ss_deg = Dict(zip(Ns, load_full_data.(Ns, "ss_bdg_noexcgap_bestof2", datadir)));
-# data_ss_possible_egap = Dict(zip(Ns, load_full_data.(Ns, "ss_bdg_noexcgap_bestof", synceddir)));
-# data_ss_nodeg = Dict(zip(Ns, load_full_data.(Ns, "ss_bdg_noexcgap_bestof_possible_egap", datadir)));
-data_ss_nodeg = Dict(zip(Ns, load_full_data.(Ns, "ss_bdg_noexcgap_bestof_nodeg", datadir)));
+ranges = [[(0.0, 1.0pi), (2.5, 3.2)]]
+initials = [[1.9, 2.9]]
+fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0, Δ=1, U=0, Ez=3)
+exps = range(-1, 4, 6)
+optparams = Hδϕ_Hε()
+N = collect(2:3)
+config = @dict N fixedparams exps optparams initials ranges
+configs = dict_list(config)
+##
+folder = datadir("final_data", "sweet_spot_scaling")
+datas = [produce_or_load(get_sweet_spots, config, folder; filename=x -> savename(x; allowedtypes=(Int, NamedTuple)))[1] for config in configs]
 
 ##
 # Ns = sort(filter(k -> k ∉ [], collect(keys(data_ss))))[1:20]
