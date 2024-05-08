@@ -28,3 +28,5 @@ function whamiltonian(c; ε, Ez, t, Δ, U, V, θ, conjugate)
     h2s = (whamiltonian_2site(cell(j, c), cell(mod1(j + 1, N), c); t=gv(t, j, N; size=2), V=gv(V, j, N; size=2), θϕ1=(gv(θ, j, N), 0), θϕ2=(gv(θ, mod1(j + 1, N), N), 0), conjugate) for j in 1:N)
     return sum(h1s) + sum(h2s)
 end
+
+kitaev_ham(c, ε, Δ, t) = BdGMatrix(QuantumDots.kitaev_hamiltonian(c; μ=-ε, t, Δ); check=false)

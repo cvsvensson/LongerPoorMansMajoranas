@@ -1,25 +1,19 @@
 using DrWatson
 @quickactivate :LongerPoorMansMajoranas
 using QuantumDots, QuantumDots.BlockDiagonals, LinearAlgebra#, BlackBoxOptim
-using Symbolics
-using Folds
-using Accessors
 using JLD2
 using DataFrames
 using LaTeXStrings
-using FiniteDiff
 using CairoMakie
 using ChunkSplitters
 synceddir(args...) = joinpath(ENV["Dropbox"], "data", "LongerPoorMans", args...)
-includet(scriptsdir("abs", "phase_plots.jl"))
-includet(scriptsdir("abs", "phase_misc.jl"))
 
 ##
 data = []
 bdg = false
 res = (500, 500)
 N = 3
-fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0, Δ=1, U=0.0, Ez=3)
+fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0, Δ=1, U=0, Ez=3)
 c = bdg ? FermionBdGBasis(1:N, (:↑, :↓)) : FermionBasis(1:N, (:↑, :↓); qn=QuantumDots.parity)
 target = bdg ? LDbdg : LD
 f, f!, cache = hamfunc(Hδϕ_Hε(), c, fixedparams)
@@ -42,11 +36,13 @@ caches = [deepcopy(cache) for _ in 1:n]
 end
 # @time data = map(mapfunc, iter);
 
-prob = OptProb(; hamfunc=hf, basis=c, optparams=Hδϕ_Hε(), target)
-ss_sol = solve(prob, BestOf(best_algs()[1:end-1]); minexcgap=0, maxiters=10000, MaxTime=10, exps=range(-1, 4, 6))
-ss_sol2 = solve(prob, BestOf(best_algs()[1:end-1]); minexcgap=0, maxiters=10000, MaxTime=10, exps=[-10])
+exps = range(0, 4, 6)
+prob = ScheduledOptProb(mapfunc, target, GapPenalty(exps))
+prob_nodeg = ScheduledOptProb(mapfunc, target)
+ss_sol = solve(prob, BestOf(best_algs()); MaxTime=10)
+ss_sol_nodeg = solve(prob, BestOf(best_algs()); MaxTime=5)
 ##
-wsave(datadir("final_data", "3-site-tuning.jld2"), Dict("data" => data, "ss_deg" => ss_sol, "ss_nodeg" => ss_sol2))
+wsave(datadir("final_data", "3-site-tuning.jld2"), Dict("data" => data, "ss_deg" => ss_sol, "ss_nodeg" => ss_sol_nodeg))
 ##
 sweet_spots = [[2.81, 1.4], [2.9, 1.825], [2.945, 2.2], reverse(ss_sol.sol), reverse(ss_sol2.sol)]
 sweet_spot_fs = mapfunc.(reverse.(sweet_spots))
