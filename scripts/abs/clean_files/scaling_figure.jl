@@ -17,7 +17,7 @@ function get_sweet_spots(config)
     f, f!, cache = hamfunc(optparams, c, fixedparams)
     prob = ScheduledOptProb(x -> fullsolve(f!(cache, x), c), target, GapPenalty(exps))
     prob_nodeg = ScheduledOptProb(x -> fullsolve(f!(cache, x), c), target)
-    kwargs = (; iterations, MaxTime=10 * sqrt(N), initials, ranges)
+    kwargs = (; iterations, MaxTime=10 * N, initials, ranges)
     ss = solve(prob, alg; kwargs...)
     ss_nodeg = solve(prob_nodeg, alg; kwargs...)
     @strdict N fixedparams ss ss_nodeg optparams
@@ -26,15 +26,22 @@ end
 ranges = [[(0.0, 1.0pi), (2.5, 3.2)]]
 initials = [[1.9, 2.9]]
 fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0, Δ=1, U=0, Ez=3)
-exps = range(-1, 4, 6)
+exps = range(-1.0, 4.0, 6)
 optparams = Hδϕ_Hε()
-N = collect(2:3)
+N = collect(2:20)
 config = @dict N fixedparams exps optparams initials ranges
 configs = dict_list(config)
 ##
 folder = datadir("final_data", "sweet_spot_scaling")
-datas = [produce_or_load(get_sweet_spots, config, folder; filename=x -> savename(x; allowedtypes=(Int, NamedTuple)))[1] for config in configs]
-
+datas = [produce_or_load(get_sweet_spots, config, folder; filename=x -> savename(x; allowedtypes=(Int, NamedTuple)))[1] for config in configs];
+##
+Ns = map(d -> d["N"], datas)
+LDs_deg = map(d -> LDbdg(d["ss"].optsol), datas)
+LDs_nodeg = map(d -> LDbdg(d["ss_nodeg"].optsol), datas)
+gap_deg = map(d -> abs(d["ss"].optsol.gap), datas)
+gap_nodeg = map(d -> abs(d["ss_nodeg"].optsol.gap), datas)
+excgap_deg = map(d -> d["ss"].optsol.excgap, datas)
+excgap_nodeg = map(d -> d["ss_nodeg"].optsol.excgap, datas)
 ##
 # Ns = sort(filter(k -> k ∉ [], collect(keys(data_ss))))[1:20]
 cbwidth = 10
@@ -43,12 +50,6 @@ markers = [:rect, :circle]
 xticks = LinearTicks(5)
 xlabel = "Chain length N"
 markersize = [14, 12]
-LDs_deg = map(N -> LDbdg(data_ss[N]["ss"].optsol), Ns)
-LDs_nodeg = map(N -> LDbdg(data_ss_nodeg[N]["ss"].optsol), Ns)
-gap_deg = map(N -> abs(data_ss[N]["ss"].optsol.gap), Ns)
-gap_nodeg = map(N -> abs(data_ss_nodeg[N]["ss"].optsol.gap), Ns)
-excgap_deg = map(N -> data_ss[N]["ss"].optsol.excgap, Ns)
-excgap_nodeg = map(N -> data_ss_nodeg[N]["ss"].optsol.excgap, Ns)
 
 fig = with_theme(theme_latexfonts()) do
     fig = Figure(size=0.7 .* (600, 600), fontsize=20)

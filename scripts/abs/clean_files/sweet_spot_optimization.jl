@@ -9,8 +9,7 @@ using JLD2
 using DataFrames
 using LaTeXStrings
 synceddir(args...) = joinpath(ENV["Dropbox"], "data", "LongerPoorMans", args...)
-includet(scriptsdir("abs", "phase_plots.jl"))
-includet(scriptsdir("abs", "phase_misc.jl"))
+
 
 ##
 data = []

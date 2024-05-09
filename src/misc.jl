@@ -101,7 +101,7 @@ function fullsolve(_H, basis::FermionBasis; reduced=true, oddvalindex=1)
     return (; gap=oddvals[oddvalindex] - first(evenvals), gapratio=gapratio(oddvals, evenvals), reduced, mps, majcoeffs, energies=(oddvals, evenvals),  excgap=excgap(oddvals, evenvals))
 end
 using SparseArrays
-function fullsolve(_H::AbstractMatrix, basis::FermionBdGBasis; reduced=true, transport=missing, cutoff=1e-10)
+function fullsolve(_H::AbstractMatrix, basis::FermionBdGBasis; reduced=true, cutoff=1e-10)
     H = BdGMatrix(_H |> Hermitian; check=false)
     N = QuantumDots.nbr_of_fermions(basis)
     es, ops = try
@@ -144,7 +144,7 @@ LDfmax(sol) = maximum(sol.reduced.fermions)
 LDbdgmax(sol) = maximum(sol.reduced.cells_bdg)
 LDbdg(sol, p=2) = norm(sol.reduced.cells_bdg, p)
 MP(sol) = 1 - (abs(sol.mps.left.mp) + abs(sol.mps.right.mp)) / 2
-MPIqd(sol) = 1 - mean(abs ∘ (x -> x.mp), sol.mps.dots)
+MPqd(sol) = 1 - mean(abs ∘ (x -> x.mp), sol.mps.dots)
 MPUqd(sol) = 1 - mean(abs ∘ (x -> x.mpu), sol.mps.dots)
 MPU(sol) = 1 - (abs(sol.mps.left.mpu) + abs(sol.mps.right.mpu)) / 2
 
