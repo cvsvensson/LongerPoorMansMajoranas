@@ -10,8 +10,8 @@ synceddir(args...) = joinpath(ENV["Dropbox"], "data", "LongerPoorMans", args...)
 
 ##
 data = []
-bdg = false
-res = (500, 500)
+bdg = true
+res = (20, 20)
 N = 3
 fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0, Δ=1, U=0, Ez=3)
 c = bdg ? FermionBdGBasis(1:N, (:↑, :↓)) : FermionBasis(1:N, (:↑, :↓); qn=QuantumDots.parity)
@@ -34,6 +34,8 @@ caches = [deepcopy(cache) for _ in 1:n]
         data[inds] = map(_f, iter[inds])
     end
 end
+##
+data_mb = data
 # @time data = map(mapfunc, iter);
 ## Get sweet spots
 exps = range(-1.0, 4.0, 6)
