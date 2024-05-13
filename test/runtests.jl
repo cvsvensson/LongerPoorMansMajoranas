@@ -54,7 +54,7 @@ end
     @test sol.reduced.cells ≈ sol_bdg.reduced.cells
     @test sol.reduced.two_cells ≈ sol_bdg.reduced.two_cells
     @test collect(sol.reduced.cells_bdg) ≈ collect(sol_bdg.reduced.cells_bdg)
-    @test sol.reduced.two_cells_bdg ≈ sol_bdg.reduced.two_cells_bdg
+    @test collect(sol.reduced.two_cells_bdg) ≈ collect(sol_bdg.reduced.two_cells_bdg)
 end
 
 using ForwardDiff

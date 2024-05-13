@@ -38,10 +38,8 @@ function reduced_similarity(basis, oddvec::AbstractVector, evenvec)
     two_cells = map((n1, n2) -> norm(partial_trace(δρ, sort(union(labels(n1), labels(n2)); by=last), basis), 2), space_labels, Iterators.drop(space_labels, 1))
 
     local_fermions(n) = reduce(vcat, [basis[l], basis[l]'] for l in labels(n))
-    cells_bdg = QuantumDots.Dictionary(space_labels, [sqrt(sum(abs2, tr(δρ * (f1 * f2)) for (f1, f2) in Base.product(local_fermions(n), local_fermions(n)))) for n in space_labels])
-    cells_bdg = QuantumDots.Dictionary(space_labels, [[tr(δρ * (f1' * f2)) for (f1, f2) in Base.product(local_fermions(n), local_fermions(n))] for n in space_labels])
-    cells_bdg2 = QuantumDots.Dictionary(space_labels, [norm(one_particle_density_matrix(δρ, basis, labels(n))) for n in space_labels])
-    cells_bdg2 = QuantumDots.Dictionary(space_labels, [(one_particle_density_matrix(δρ, basis, labels(n))) for n in space_labels])
+    # @time cells_bdg = QuantumDots.Dictionary(space_labels, [sqrt(sum(abs2, tr(δρ * (f1 * f2)) for (f1, f2) in Base.product(local_fermions(n), local_fermions(n)))) for n in space_labels])
+    cells_bdg = QuantumDots.Dictionary(space_labels, [norm(one_particle_density_matrix(δρ, basis, labels(n))) for n in space_labels])
 
     fermions_opdm = QuantumDots.Dictionary(keys(basis), [norm([tr(δρ * (f' * f)), tr(δρ * (f * f'))]) for f in basis])
 
@@ -50,7 +48,7 @@ function reduced_similarity(basis, oddvec::AbstractVector, evenvec)
     end
     two_cells_bdg = QuantumDots.Dictionary(spatial_labels(basis)[1:end-1], [two_cell_bdg(n) for n in spatial_labels(basis)[1:end-1]])
 
-    return (; fermions, cells, two_cells, cells_bdg, cells_bdg2, two_cells_bdg, fermions_opdm)
+    return (; fermions, cells, two_cells, cells_bdg, two_cells_bdg, fermions_opdm)
 end
 
 function reduced_similarity(qps::AbstractVector{<:QuantumDots.QuasiParticle})
@@ -66,7 +64,7 @@ function reduced_similarity(qps::AbstractVector{<:QuantumDots.QuasiParticle})
 
     function one_cell_bdg(n)
         inds = cinds(n)
-        return (ρeven[inds, inds] - ρodd[inds, inds])
+        return norm(ρeven[inds, inds] - ρodd[inds, inds])
     end
     cells_bdg = QuantumDots.Dictionary(1:div(N, 2), [one_cell_bdg(n) for n in space_labels])
     function two_cell_bdg(n)
