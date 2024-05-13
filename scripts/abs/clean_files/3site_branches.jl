@@ -79,8 +79,6 @@ for δε2 in δε2s
     push!(nodeg_data, nodeg_sol)
 end
 ##
-
-# function branch_plot!(ax, δε2s, phase_data, level_data, two_site, target)
 function branch_plot!(ax, δε2s, datas, two_site, target)
     strokewidth = 1
     markersize = 10

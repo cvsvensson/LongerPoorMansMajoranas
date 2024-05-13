@@ -32,13 +32,14 @@ function reduced_similarity(basis, oddvec::AbstractVector, evenvec)
     δρ = o - e
     fermions = map(label -> norm(partial_trace(δρ, (label,), basis)), keys(basis))
     labels = cell_labels(basis)
+    space_labels = spatial_labels(basis)
 
-    cells = map(n -> norm(partial_trace(δρ, labels(n), basis), 2), spatial_labels(basis))
-    two_cells = map((n1, n2) -> norm(partial_trace(δρ, sort(union(labels(n1), labels(n2)); by=last), basis), 2), spatial_labels(basis), Iterators.drop(spatial_labels(basis), 1))
+    cells = map(n -> norm(partial_trace(δρ, labels(n), basis), 2), space_labels)
+    two_cells = map((n1, n2) -> norm(partial_trace(δρ, sort(union(labels(n1), labels(n2)); by=last), basis), 2), space_labels, Iterators.drop(space_labels, 1))
 
     local_fermions(n) = reduce(vcat, [basis[l], basis[l]'] for l in labels(n))
-    cells_bdg = QuantumDots.Dictionary(spatial_labels(basis), [sqrt(sum(abs2, tr(δρ * (f1 * f2)) for (f1, f2) in Base.product(local_fermions(n), local_fermions(n)))) for n in spatial_labels(basis)])
-    cells_bdg2 = QuantumDots.Dictionary(spatial_labels(basis), [norm(one_particle_density_matrix(δρ, basis, labels(n))) for n in spatial_labels(basis)])
+    # @time cells_bdg = QuantumDots.Dictionary(space_labels, [sqrt(sum(abs2, tr(δρ * (f1 * f2)) for (f1, f2) in Base.product(local_fermions(n), local_fermions(n)))) for n in space_labels])
+    cells_bdg = QuantumDots.Dictionary(space_labels, [norm(one_particle_density_matrix(δρ, basis, labels(n))) for n in space_labels])
 
     fermions_opdm = QuantumDots.Dictionary(keys(basis), [norm([tr(δρ * (f' * f)), tr(δρ * (f * f'))]) for f in basis])
 
@@ -47,11 +48,12 @@ function reduced_similarity(basis, oddvec::AbstractVector, evenvec)
     end
     two_cells_bdg = QuantumDots.Dictionary(spatial_labels(basis)[1:end-1], [two_cell_bdg(n) for n in spatial_labels(basis)[1:end-1]])
 
-    return (; fermions, cells, two_cells, cells_bdg, cells_bdg2, two_cells_bdg, fermions_opdm)
+    return (; fermions, cells, two_cells, cells_bdg, two_cells_bdg, fermions_opdm)
 end
 
 function reduced_similarity(qps::AbstractVector{<:QuantumDots.QuasiParticle})
     basis = qps[1].basis
+    space_labels = spatial_labels(basis)
     N = QuantumDots.nbr_of_fermions(basis)
     labels = QuantumDots.labels(basis)
     ρeven = QuantumDots.one_particle_density_matrix(qps[1:N])
@@ -64,13 +66,25 @@ function reduced_similarity(qps::AbstractVector{<:QuantumDots.QuasiParticle})
         inds = cinds(n)
         return norm(ρeven[inds, inds] - ρodd[inds, inds])
     end
-    cells_bdg = QuantumDots.Dictionary(1:div(N, 2), [one_cell_bdg(n) for n in 1:div(N, 2)])
+    cells_bdg = QuantumDots.Dictionary(1:div(N, 2), [one_cell_bdg(n) for n in space_labels])
     function two_cell_bdg(n)
         inds = vcat(cinds(n), cinds(n + 1))
         return norm(ρeven[inds, inds] - ρodd[inds, inds])
     end
-    two_cells_bdg = QuantumDots.Dictionary(1:div(N, 2)-1, [two_cell_bdg(n) for n in 1:div(N, 2)-1])
-    return (; fermions, cells_bdg, two_cells_bdg)#, cell_matrices)
+    c_dot = FermionBasis(1:length(cell_labels(first(space_labels), basis)), qn=QuantumDots.parity)
+    function LD_cell(n)
+        inds = cinds(n)
+        norm(many_body_density_matrix(ρeven[inds, inds], c_dot) - many_body_density_matrix(ρodd[inds, inds], c_dot))
+    end
+    c_2dots = FermionBasis(1:2length(cell_labels(first(space_labels), basis)))
+    function LD_two_cells(n)
+        inds = sort(vcat(cinds(n), cinds(n + 1)))
+        norm(many_body_density_matrix(ρeven[inds, inds], c_2dots) - many_body_density_matrix(ρodd[inds, inds], c_2dots))
+    end
+    cells = [LD_cell(n) for n in space_labels]
+    two_cells = [LD_two_cells(n) for n in space_labels[1:end-1]]
+    two_cells_bdg = QuantumDots.Dictionary(space_labels[1:end-1], [two_cell_bdg(n) for n in space_labels[1:end-1]])
+    return (; fermions, cells_bdg, two_cells_bdg, cells, two_cells)#, cell_matrices)
 end
 
 function get_majorana_polarizations(majcoeffs, basis)
@@ -98,7 +112,7 @@ function fullsolve(_H, basis::FermionBasis; reduced=true, oddvalindex=1)
     majcoeffs = QuantumDots.majorana_coefficients(oddvec, evenvecs[:, 1], basis)
     mps = get_majorana_polarizations(majcoeffs, basis)
     reduced = reduced ? reduced_similarity(basis, oddvec, evenvecs[:, 1]) : missing
-    return (; gap=oddvals[oddvalindex] - first(evenvals), gapratio=gapratio(oddvals, evenvals), reduced, mps, majcoeffs, energies=(oddvals, evenvals),  excgap=excgap(oddvals, evenvals))
+    return (; gap=oddvals[oddvalindex] - first(evenvals), gapratio=gapratio(oddvals, evenvals), reduced, mps, majcoeffs, energies=(oddvals, evenvals), excgap=excgap(oddvals, evenvals))
 end
 using SparseArrays
 function fullsolve(_H::AbstractMatrix, basis::FermionBdGBasis; reduced=true, cutoff=1e-10)
