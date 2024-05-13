@@ -8,15 +8,15 @@ using LaTeXStrings
 synceddir(args...) = joinpath(ENV["Dropbox"], "data", "LongerPoorMans", args...)
 ##
 fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0, Δ=1, U=0, Ez=3)
-bdg = iszero(fixedparams.V) && iszero(fixedparams.U)
-target = bdg ? LDbdg : LD
+bdg = true# iszero(fixedparams.V) && iszero(fixedparams.U)
+target = LD_cells#bdg ? LDbdg : LD
 ## 2 site sweet  spot
 c2 = bdg ? FermionBdGBasis(1:2, (:↑, :↓)) : FermionBasis(1:2, (:↑, :↓); qn=QuantumDots.parity)
 f2, f2!, cache2 = hamfunc(Hδϕ_Hε(), c2, fixedparams)
 exps = range(0, 4, 5)
-fs = x -> fullsolve(f2!(cache2, x), c2)
-prob_2_site = ScheduledOptProb(fs, target, GapPenalty(exps))
-ss2 = solve(prob_2_site, BestOf(best_algs()); iterations=length(exps), maxiters=100000, MaxTime=1, initials=[2, 2], ranges=[(0.0, 1.0pi), (-5.0, 5.0)])
+eigfunc = x -> diagonalize(f2!(cache2, x), c2)
+prob_2_site = ScheduledOptProb(eigfunc, target, GapPenalty(exps))
+ss2 = solve(prob_2_site, BestOf(best_algs()); iterations=length(exps), MaxTime=1, initials=[2, 2], ranges=[(0.0, 1.0pi), (-5.0, 5.0)])
 
 ## 3 site sweet spot
 initials = [2.2, sqrt(fixedparams.Ez^2 - fixedparams.Δ^2)]#2.95]
@@ -25,14 +25,14 @@ f, f!, cache = hamfunc(Rδϕ_Rε(), c, fixedparams)
 fh, fh!, cacheh = hamfunc(Hδϕ_Hε(), c, fixedparams)
 @assert norm(f([1, 1, 1]) - fh([1, 1])) < 1e-16
 
-fhs = x -> fullsolve(fh!(cacheh, x), c)
-prob_3_site_homogeneous = ScheduledOptProb(fhs, target, GapPenalty(exps))
-ss3_homogeneous = solve(prob_2_site, BestOf(best_algs()); iterations=length(exps), maxiters=100000, MaxTime=2, initials=[2, 2], ranges=[(0.0, 1.0pi), (0.0, 5.0)])
+eigfunc = x -> diagonalize(fh!(cacheh, x), c)
+prob_3_site_homogeneous = ScheduledOptProb(eigfunc, target, GapPenalty(exps))
+ss3_homogeneous = solve(prob_3_site_homogeneous, BestOf(best_algs()); iterations=length(exps), MaxTime=2, initials=[2, 2], ranges=[(0.0, 1.0pi), (0.0, 5.0)])
 ##
 ss = ss3_homogeneous
 ε0 = ss.sol[2]
 initials = collect(ss.sol)
-MaxTime = 1
+MaxTime = 5
 minexcgap = ss.optsol.excgap * 0.0
 phase_data = []
 level_data = []
@@ -44,9 +44,9 @@ nodeg_data = []
 for δε2 in δε2s
     # alg = BestOf(best_algs())
     hamfunc = δϕε1 -> f!(cache, [δϕε1[1], δϕε1[2], δϕε1[2] + δε2])
-    fs = x -> fullsolve(hamfunc(x), c)
-    prob = ScheduledOptProb(fs, target, GapPenalty(exps))
-    prob_nodeg = ScheduledOptProb(fs, target)
+    eigfunc = x -> diagonalize(hamfunc(x), c)
+    prob = ScheduledOptProb(eigfunc, target, GapPenalty(exps))
+    prob_nodeg = ScheduledOptProb(eigfunc, target)
     #WARNING: This is a hack to get the phase branch
     phase_ranges = [(0.0, 2.0), 2.82 .+ 1 .* (-2, 0.0)] #phase branch
     level_ranges = [(0.0, 1.0pi), 2.85 .+ 1 .* (0.0, 0.3)] # level branch
@@ -64,19 +64,19 @@ for δε2 in δε2s
     kwargs = (; iterations, MaxTime, initials)
     # phase branch
     phase_sol = solve(prob, BestOf(best_algs()); ranges=phase_ranges, kwargs...)
-    push!(phase_data, phase_sol)
+    push!(phase_data, (phase_sol))
     # phase branch with penalty
     # phase_sol_pf = solve(prob_phase_pf, BestOf(best_algs()); ranges=nodeg_ranges, kwargs...)
     # push!(phase_data_pf, phase_sol_pf)
     # repeat for level branch
     level_sol = solve(prob, BestOf(best_algs()); ranges=level_ranges, kwargs...)
-    push!(level_data, level_sol)
+    push!(level_data, (level_sol))
     # repeat for level branch with penalty factor instead
     # level_sol_pf = solve(prob_level_pf, BestOf(best_algs()); ranges=nodeg_ranges, kwargs...)
     # push!(level_data_pf, level_sol_pf)
     # non-degenerate branch
     nodeg_sol = solve(prob_nodeg, BestOf(best_algs()); kwargs..., MaxTime=MaxTime / 3, initials=[2.0, ε0 + 0.1], ranges=nodeg_ranges)
-    push!(nodeg_data, nodeg_sol)
+    push!(nodeg_data, (nodeg_sol))
 end
 ##
 function branch_plot!(ax, δε2s, datas, two_site, target)

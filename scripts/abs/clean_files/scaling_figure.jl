@@ -13,10 +13,11 @@ function get_sweet_spots(config)
     iterations = length(exps)
     c = bdg ? FermionBdGBasis(1:N, (:↑, :↓)) : FermionBasis(1:N, (:↑, :↓); qn=QuantumDots.parity)
     alg = BestOf(best_algs())
-    target = bdg ? LDbdg : LD
+    target = LD_cells#bdg ? LDbdg : LD
     f, f!, cache = hamfunc(optparams, c, fixedparams)
-    prob = ScheduledOptProb(x -> fullsolve(f!(cache, x), c), target, GapPenalty(exps))
-    prob_nodeg = ScheduledOptProb(x -> fullsolve(f!(cache, x), c), target)
+    eigfunc = x -> diagonalize(f!(cache, x), c)
+    prob = ScheduledOptProb(eigfunc, target, GapPenalty(exps))
+    prob_nodeg = ScheduledOptProb(eigfunc, target)
     kwargs = (; iterations, MaxTime=10 * N, initials, ranges)
     ss = solve(prob, alg; kwargs...)
     ss_nodeg = solve(prob_nodeg, alg; kwargs...)
@@ -32,7 +33,7 @@ N = collect(2:20)
 config = @dict N fixedparams exps optparams initials ranges
 configs = dict_list(config)
 ##
-folder = datadir("final_data", "sweet_spot_scaling")
+folder = datadir("final_data", "sweet_spot_scaling_ld")
 datas = [produce_or_load(get_sweet_spots, config, folder; filename=x -> savename(x; allowedtypes=(Int, NamedTuple)))[1] for config in configs];
 ##
 Ns = map(d -> d["N"], datas)
