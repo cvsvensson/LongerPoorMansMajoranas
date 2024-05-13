@@ -37,8 +37,10 @@ folder = datadir("final_data", "sweet_spot_scaling_ld")
 datas = [produce_or_load(get_sweet_spots, config, folder; filename=x -> savename(x; allowedtypes=(Int, NamedTuple)))[1] for config in configs];
 ##
 Ns = map(d -> d["N"], datas)
-LDs_deg = map(d -> LDbdg(d["ss"].optsol), datas)
-LDs_nodeg = map(d -> LDbdg(d["ss_nodeg"].optsol), datas)
+LDs_deg = map(d -> LD_cells(d["ss"].optsol), datas)
+LDs_nodeg = map(d -> LD_cells(d["ss_nodeg"].optsol), datas)
+LDbdgs_deg = map(d -> LDbdg(d["ss"].optsol), datas)
+LDbdgs_nodeg = map(d -> LDbdg(d["ss_nodeg"].optsol), datas)
 gap_deg = map(d -> abs(d["ss"].optsol.gap), datas)
 gap_nodeg = map(d -> abs(d["ss_nodeg"].optsol.gap), datas)
 excgap_deg = map(d -> d["ss"].optsol.excgap, datas)
