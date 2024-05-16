@@ -74,7 +74,7 @@ function reduced_similarity(qps::AbstractVector{<:QuantumDots.QuasiParticle}; on
         inds = cinds(n)
         return norm(ρeven[inds, inds] - ρodd[inds, inds])
     end
-    cells_bdg = QuantumDots.Dictionary(1:div(N, 2), [one_cell_bdg(n) for n in space_labels])
+    cells_bdg = QuantumDots.Dictionary(1:length(space_labels), [one_cell_bdg(n) for n in space_labels])
     function two_cell_bdg(n)
         inds = vcat(cinds(n), cinds(n + 1))
         return norm(ρeven[inds, inds] - ρodd[inds, inds])

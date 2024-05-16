@@ -85,23 +85,29 @@ end
 save(plotsdir("sweet_spot_tuning_3_site.png"), fig; px_per_unit=10)
 
 ## Calculate perturbative data
+# a = FermionBdGBasis(1:3)#; qn=QuantumDots.parity)
 a = FermionBasis(1:3; qn=QuantumDots.parity)
-function perturbative_solution(a, M, kwargs...)
-    H = perturbative_hamiltonian(a, M; kwargs...)
-    fullsolve(H, a)
-end
+# function perturbative_solution(a, M, kwargs...)
+#     H = perturbative_hamiltonian(a, M; kwargs...)
+#     fullsolve(H, a)
+# end
 fixedparams_pert = merge(fixedparams[[:t, :θ, :Ez]], (; Δ=fixedparams.Δ * [1, 1, 1]))
-pert_solve(a, M, δϕ, ε) = fullsolve(perturbative_hamiltonian(a, M; ε=fill(ε, 3), δϕ=fill(δϕ, 2), fixedparams_pert...), a)
-pert_solve(a, 1, 1.2, 2.0)
+pert_solve(a, M, δϕ, ε) = fullsolve((perturbative_hamiltonian(a, M; ε=fill(ε, 3), δϕ=fill(δϕ, 2), fixedparams_pert...)), a)
+sol_bdg = pert_solve(a, 1, 1.2, 2.0)
 ##
 pert_datas = [Matrix{Any}(undef, res...), Matrix{Any}(undef, res...)]
 n = Threads.nthreads()
+##
+pert_datas = []
 @time foreach(1:2) do M
-    Threads.@threads for (ichunk, inds) in enumerate(chunks(iter; n=n))
-        _f = δϕε -> pert_solve(a, M, δϕε...)
-        pert_datas[M][inds] = map(_f, iter[inds])
-    end
+    # Threads.@threads for (ichunk, inds) in enumerate(chunks(iter; n=n))
+    #     _f = δϕε -> pert_solve(a, M, δϕε...)
+    #     pert_datas[M][inds] = map(_f, iter[inds])
+    # end
+    _f = δϕε -> pert_solve(a, M, δϕε...)
+    push!(pert_datas, @showprogress "Calculating perturbative solutions for M=$M" map(_f, iter))
 end
+
 ## Save data
 wsave(datadir("final_data", "3-site-perturbative.jld2"), Dict("data" => pert_datas, "εs" => εs, "δϕs" => δϕs, "fixedparams" => fixedparams_pert))
 ## Laod data
@@ -114,9 +120,9 @@ fig_pert = with_theme(theme_latexfonts()) do
 
     g = fig[1, 1] = GridLayout()
     xticks = WilkinsonTicks(3)
-    ax = Axis(g[1, 3]; xlabel=L"ε", ylabel=L"δϕ", yticks=(pi * [0, 1 / 2, 1], [L"0", L"\frac{\pi}{2}", L"π"]), title=L"H", xticks)
-    ax1 = Axis(g[1, 1]; title=L"H_1^\text{eff}", xlabel=L"ε", ylabel=L"δϕ", yticks=(pi * [0, 1 / 2, 1], [L"0", L"\frac{\pi}{2}", L"π"]), xticks)
-    ax2 = Axis(g[1, 2]; title=L"H_2^\text{eff}", xlabel=L"ε", ylabel=L"δϕ", yticks=(pi * [0, 1 / 2, 1], [L"0", L"\frac{\pi}{2}", L"π"]), xticks)
+    ax = Axis(g[1, 3]; xlabel=L"ε/Δ", ylabel=L"δϕ", yticks=(pi * [0, 1 / 2, 1], [L"0", L"\frac{\pi}{2}", L"π"]), title=L"H", xticks)
+    ax1 = Axis(g[1, 1]; title=L"H_1^\text{eff}", xlabel=L"ε/Δ", ylabel=L"δϕ", yticks=(pi * [0, 1 / 2, 1], [L"0", L"\frac{\pi}{2}", L"π"]), xticks)
+    ax2 = Axis(g[1, 2]; title=L"H_2^\text{eff}", xlabel=L"ε/Δ", ylabel=L"δϕ", yticks=(pi * [0, 1 / 2, 1], [L"0", L"\frac{\pi}{2}", L"π"]), xticks)
     linkaxes!(ax, ax1, ax2)
     hideydecorations!(ax)
     hideydecorations!(ax2)
@@ -159,13 +165,13 @@ fig_pert_vert = with_theme(theme_latexfonts()) do
     g = fig[1, 1] = GridLayout()
     xticks = WilkinsonTicks(3)
 
-    ax = Axis(g[3, 1]; xlabel=L"ε", ylabel=L"δϕ", yticks=(pi * [0, 1 / 2, 1], [L"0", L"\frac{\pi}{2}", L"π"]), xticks)
+    ax = Axis(g[3, 1]; xlabel=L"ε/Δ", ylabel=L"δϕ", yticks=(pi * [0, 1 / 2, 1], [L"0", L"\frac{\pi}{2}", L"π"]), xticks)
     Label(g[3, 1, TopLeft()], L"H"; halign=:left, tellheight=false)
 
-    ax1 = Axis(g[1, 1]; xlabel=L"ε", ylabel=L"δϕ", yticks=(pi * [0, 1 / 2, 1], [L"0", L"\frac{\pi}{2}", L"π"]), xticks)
+    ax1 = Axis(g[1, 1]; xlabel=L"ε/Δ", ylabel=L"δϕ", yticks=(pi * [0, 1 / 2, 1], [L"0", L"\frac{\pi}{2}", L"π"]), xticks)
     Label(g[1, 1, TopLeft()], L"H_1^\text{eff}"; halign=:left, tellheight=false)
 
-    ax2 = Axis(g[2, 1]; xlabel=L"ε", ylabel=L"δϕ", yticks=(pi * [0, 1 / 2, 1], [L"0", L"\frac{\pi}{2}", L"π"]), xticks)
+    ax2 = Axis(g[2, 1]; xlabel=L"ε/Δ", ylabel=L"δϕ", yticks=(pi * [0, 1 / 2, 1], [L"0", L"\frac{\pi}{2}", L"π"]), xticks)
     Label(g[2, 1, TopLeft()], L"H_2^\text{eff}"; halign=:left, tellheight=false)
     linkaxes!(ax, ax1, ax2)
     hidexdecorations!(ax1)
@@ -203,4 +209,4 @@ fig_pert_vert = with_theme(theme_latexfonts()) do
     fig
 end
 ##
-save(plotsdir("3_site_tuning_perturbative.png"), fig_pert; px_per_unit=10)
+save(plotsdir("3_site_tuning_perturbative2.png"), fig_pert; px_per_unit=10)
