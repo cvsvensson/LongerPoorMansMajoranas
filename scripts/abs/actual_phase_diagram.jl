@@ -4,7 +4,6 @@ using QuantumDots, QuantumDots.BlockDiagonals, LinearAlgebra#, BlackBoxOptim
 using Plots
 using Symbolics
 using SkewLinearAlgebra
-# using Optimization, OptimizationBBO
 using StaticArrays
 using GellMannMatrices
 using Roots
@@ -48,9 +47,6 @@ hpi = substitute.(h, k => pi)
 skewH(k, ε, (t1, t2), (Δ1, Δ2); kwargs...) = QuantumDots.bdg_to_skew(bdgH(k, ε, (t1, t2), (Δ1, Δ2)); kwargs...)
 substitute.(skewH(k, ε, (t1, t2), (Δ1, Δ2); check=false), k => 0)
 function topoQ(ε, (t1, t2), (Δ1, Δ2); kwargs...)
-    # pf1 = pfaffian(skewH(0, ε, (t1, t2), (Δ1, Δ2); kwargs...))
-    # pf2 = pfaffian(skewH(pi, ε, (t1, t2), (Δ1, Δ2); kwargs...))
-    # sign(pf1 * pf2)
     sign((2real(t1 + t2) + ε) * (2real(-t1 + t2) + ε))
 end
 function energy_gap(ε, (t1, t2), (Δ1, Δ2))

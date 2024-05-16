@@ -18,7 +18,7 @@ function get_sweet_spots(config)
     eigfunc = x -> diagonalize(f!(cache, x), c)
     prob = ScheduledOptProb(eigfunc, target, GapPenalty(exps))
     prob_nodeg = ScheduledOptProb(eigfunc, target)
-    kwargs = (; iterations, MaxTime=10 * N, initials, ranges)
+    kwargs = (; iterations, MaxTime=length(alg.optimizers) * 10 * N, initials, ranges)
     ss = solve(prob, alg; kwargs...)
     ss_nodeg = solve(prob_nodeg, alg; kwargs...)
     @strdict N fixedparams ss ss_nodeg optparams
@@ -35,16 +35,25 @@ configs = dict_list(config)
 ##
 folder = datadir("final_data", "sweet_spot_scaling_ld")
 datas = [produce_or_load(get_sweet_spots, config, folder; filename=x -> savename(x; allowedtypes=(Int, NamedTuple)))[1] for config in configs];
+# folder2 = datadir("final_data", "sweet_spot_scaling_ld2")
+# datas2 = [produce_or_load(get_sweet_spots, config, folder2; filename=x -> savename(x; allowedtypes=(Int, NamedTuple)))[1] for config in configs];
 ##
-Ns = map(d -> d["N"], datas)
-LDs_deg = map(d -> LD_cells(d["ss"].optsol), datas)
-LDs_nodeg = map(d -> LD_cells(d["ss_nodeg"].optsol), datas)
-LDbdgs_deg = map(d -> LDbdg(d["ss"].optsol), datas)
-LDbdgs_nodeg = map(d -> LDbdg(d["ss_nodeg"].optsol), datas)
-gap_deg = map(d -> abs(d["ss"].optsol.gap), datas)
-gap_nodeg = map(d -> abs(d["ss_nodeg"].optsol.gap), datas)
-excgap_deg = map(d -> d["ss"].optsol.excgap, datas)
-excgap_nodeg = map(d -> d["ss_nodeg"].optsol.excgap, datas)
+_datas = datas[1:end]
+sweet_spots = map(d -> first(filter(x -> abs(x.optsol.gap) < 1e-10, d["ss"].all_sols)), _datas)
+# sweet_spots2 = map(d -> first(filter(x -> abs(x.optsol.gap) < 1e-10, d["ss"].all_sols)), datas2)
+# sweet_spots = map((s1,s2) -> LD_cells(s1),sweet_spots1, sweet_spots2)
+sweet_spots_nodeg = map(d -> d["ss_nodeg"], _datas)
+# sweet_spots = sweet_spots2
+##
+Ns = map(d -> d["N"], _datas)
+LDs_deg = map(d -> LD_cells(d.optsol), sweet_spots)
+LDs_nodeg = map(d -> LD_cells(d.optsol), sweet_spots_nodeg)
+LDbdgs_deg = map(d -> LDbdg(d.optsol), sweet_spots)
+LDbdgs_nodeg = map(d -> LDbdg(d.optsol), sweet_spots_nodeg)
+gap_deg = map(d -> abs(d.optsol.gap), sweet_spots)
+gap_nodeg = map(d -> abs(d.optsol.gap), sweet_spots_nodeg)
+excgap_deg = map(d -> d.optsol.excgap, sweet_spots)
+excgap_nodeg = map(d -> d.optsol.excgap, sweet_spots_nodeg)
 ##
 # Ns = sort(filter(k -> k ∉ [], collect(keys(data_ss))))[1:20]
 cbwidth = 10
@@ -56,25 +65,30 @@ markersize = [14, 12]
 
 fig = with_theme(theme_latexfonts()) do
     fig = Figure(size=0.7 .* (600, 600), fontsize=20)
-    ax = Axis(fig[1, 1]; xlabel, ylabel=L"\text{LD-sp}", yscale=log10, yticks=LogTicks(LinearTicks(3)), xticks)
+    ax = Axis(fig[1, 1]; xlabel, ylabel="LD", yscale=log10, yticks=LogTicks(LinearTicks(3)), xticks)
     ylims!(ax, (1e-5, 1))
-
-    f_ld_deg = scatterlines!(ax, Ns, LDs_deg; linewidth, legend=false, markers=true, label="δE ≈ 0", marker=markers[1], markersize=markersize[1])
-    f_ld_nodeg = scatterlines!(ax, Ns, LDs_nodeg; linewidth, legend=false, markers=true, label="δE unconstrained", marker=markers[2], markersize=markersize[2])
+    c1 = Cycled(1)
+    c2 = Cycled(3)
+    strokewidth = 1
+    common_kwargs = (; linewidth, strokewidth, legend=false)
+    kwargs1 = (; color=c1, marker=markers[1], markersize=markersize[1], label="δE ≈ 0")
+    kwargs2 = (; color=c2, marker=markers[2], markersize=markersize[2], label="δE unconstrained")
+    f_ld_deg = scatterlines!(ax, Ns, LDs_deg; common_kwargs..., kwargs1...)
+    f_ld_nodeg = scatterlines!(ax, Ns, LDs_nodeg; common_kwargs..., kwargs2...)
 
     axislegend(ax, position=:lb, labelsize=13, titlesize=13)
 
     ax2 = Axis(fig[2, 1]; xlabel, ylabel="|δE|/Δ", yscale=log10, yticks=LogTicks(LinearTicks(4)), xticks)
     hidexdecorations!(ax; ticks=true, grid=false)
     ylims!(ax2, (1e-18, 1))
-    f_gap_deg = scatterlines!(ax2, Ns, gap_deg; linewidth, legend=false, markers=true, label="δE = 0", marker=markers[1], markersize=markersize[1])
-    f_gap_nodeg = scatterlines!(ax2, Ns, gap_nodeg; linewidth, legend=false, markers=true, label="δE != 0", marker=markers[2], markersize=markersize[2])
+    f_gap_deg = scatterlines!(ax2, Ns, gap_deg; common_kwargs..., kwargs1...)
+    f_gap_nodeg = scatterlines!(ax2, Ns, gap_nodeg; common_kwargs..., kwargs2...)
 
-    ax3 = Axis(fig[3, 1]; xlabel, ylabel=L"\text{Excgap}/Δ", yticks=WilkinsonTicks(3), xticks)
+    ax3 = Axis(fig[3, 1]; xlabel, ylabel=L"E_x/Δ", yticks=WilkinsonTicks(3), xticks)
     ylims!(ax3, (0, 0.2))
     hidexdecorations!(ax2; ticks=true, grid=false)
-    f_excgap_deg = scatterlines!(ax3, Ns, excgap_deg; linewidth, legend=false, markers=true, label="δE = 0", marker=markers[1], markersize=markersize[1])
-    f_excgap_nodeg = scatterlines!(ax3, Ns, excgap_nodeg; linewidth, legend=false, markers=true, label="δE != 0", marker=markers[2], markersize=markersize[2])
+    f_excgap_deg = scatterlines!(ax3, Ns, excgap_deg; common_kwargs..., kwargs1...)
+    f_excgap_nodeg = scatterlines!(ax3, Ns, excgap_nodeg; common_kwargs..., kwargs2...)
 
 
     # Label(fig[1, 2, Bottom()], " LD", tellwidth=false, tellheight=false, fontsize=20)

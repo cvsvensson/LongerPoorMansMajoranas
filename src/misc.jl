@@ -235,11 +235,12 @@ end
 function get_gap(eig::BdGEigen)
     energy_info(eig).gap
 end
+get_gap(nt::NamedTuple) = nt.gap
 function all_info(eig)
     (; majorana_info(eig)..., energy_info(eig)..., reduced=reduced_info(eig))
 end
-function fullsolve(_H::AbstractMatrix, basis::FermionBdGBasis)
-    bdgeig = QuantumDots.diagonalize(_H, basis; cutoff=cutoff)
+function fullsolve(_H::AbstractMatrix, basis::FermionBdGBasis; cutoff=1e-10)
+    bdgeig = QuantumDots.diagonalize(_H, basis; cutoff)
     majinfo = majorana_info(bdgeig)
     reduced = reduced_info(bdgeig)
     return (; energy_info(bdgeig)..., majinfo..., reduced)

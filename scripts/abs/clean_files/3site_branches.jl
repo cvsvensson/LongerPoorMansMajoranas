@@ -19,10 +19,11 @@ prob_2_site = ScheduledOptProb(eigfunc, target, GapPenalty(exps))
 ss2 = solve(prob_2_site, BestOf(best_algs()); iterations=length(exps), MaxTime=1, initials=[2, 2], ranges=[(0.0, 1.0pi), (-5.0, 5.0)])
 
 ## 3 site sweet spot
-initials = [2.2, sqrt(fixedparams.Ez^2 - fixedparams.Δ^2)]#2.95]
+initials = [2.2, sqrt(fixedparams.Ez^2 - first(fixedparams.Δ)^2)]#2.95]
+# fixedparams = @set fixedparams.Δ = [1, -1, 1]
 c = bdg ? FermionBdGBasis(1:3, (:↑, :↓)) : FermionBasis(1:3, (:↑, :↓); qn=QuantumDots.parity)
-f, f!, cache = hamfunc(Rδϕ_Rε(), c, fixedparams)
-fh, fh!, cacheh = hamfunc(Hδϕ_Hε(), c, fixedparams)
+f, f!, cache = hamfunc(Rδϕ_Rε(), c, fixedparams);
+fh, fh!, cacheh = hamfunc(Hδϕ_Hε(), c, fixedparams);
 @assert norm(f([1, 1, 1]) - fh([1, 1])) < 1e-16
 
 eigfunc = x -> diagonalize(fh!(cacheh, x), c)
@@ -32,7 +33,7 @@ ss3_homogeneous = solve(prob_3_site_homogeneous, BestOf(best_algs()); iterations
 ss = ss3_homogeneous
 ε0 = ss.sol[2]
 initials = collect(ss.sol)
-MaxTime = 5
+MaxTime = 1
 minexcgap = ss.optsol.excgap * 0.0
 phase_data = []
 level_data = []
