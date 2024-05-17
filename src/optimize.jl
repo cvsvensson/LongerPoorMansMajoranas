@@ -62,7 +62,7 @@ function SciMLBase.solve(prob::ScheduledOptProb, alg; kwargs...)
     end
     of = OptimizationFunction(f, AutoFiniteDiff())
     sol = __solve(of, alg; kwargs...)
-    optsol = all_info(prob.eigfunc(x.u))
+    optsol = all_info(prob.eigfunc(sol.u))
     gap_der = get_gap_derivatives(prob.eigfunc, sol.u)
     return (; sol, optsol, gap_der...)
 end
@@ -82,18 +82,20 @@ function SciMLBase.solve(prob::ScheduledOptProb, alg::BestOf; MaxTime, kwargs...
     return merge(sols[1], (; all_sols=sols))
 end
 
-function __solve(f, alg; iterations, MaxTime=5, maxiters=1000, initials, ranges, kwargs...)
+function __solve(f, alg; iterations, MaxTime=5, maxiters=1000, initials, ranges, verbosity=1, kwargs...)
     maxtime = MaxTime / iterations
     lb = map(first, ranges)
     ub = map(last, ranges)
     newinitials = map(clamp, initials, lb, ub)
-    println("Finding sweet spot with ", alg)
-    println("Initial point: ", newinitials)
+    if verbosity > 0
+        println("Finding sweet spot with ", alg)
+        println("Initial point: ", newinitials)
+    end
     prob = OptimizationProblem(f, newinitials, (1,); lb, ub)
     sol = solve(prob, alg; maxiters, maxtime, kwargs...)
     for n in 2:iterations
         newinitials = map(clamp, sol.u, lb, ub)
-        println("$n, Sweet spot:", newinitials)
+        verbosity > 0 && println("$n, Sweet spot:", newinitials)
         prob = OptimizationProblem(f, newinitials, (n,); lb=map(first, ranges), ub=map(last, ranges))
         sol = solve(prob, alg; maxiters, maxtime, kwargs...)
     end

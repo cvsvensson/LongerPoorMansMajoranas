@@ -11,10 +11,10 @@ synceddir(args...) = joinpath(ENV["Dropbox"], "data", "LongerPoorMans", args...)
 
 ##
 data = []
-bdg = true
-res = (500, 500)
+res = (50, 50)
 N = 3
-fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0, Δ=1, U=0, Ez=3)
+fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0.2, Δ=1, U=1, Ez=3)
+bdg = iszero(fixedparams.U) && iszero(fixedparams.V)
 c = bdg ? FermionBdGBasis(1:N, (:↑, :↓)) : FermionBasis(1:N, (:↑, :↓); qn=QuantumDots.parity)
 target = LD_cells
 f, f!, cache = hamfunc(Hδϕ_Hε(), c, fixedparams)
@@ -31,17 +31,22 @@ data = @showprogress map(mapfunc, iter)
 ## Get sweet spots
 exps = range(-1.0, 4.0, 6)
 prob = ScheduledOptProb(eigfunc, target, GapPenalty(exps))
+prob_level = ScheduledOptProb(eigfunc, target, GapPenalty(exps) + ScheduledPenalty((sol, x, i) -> 10^(-i)abs(get_gap(eigfunc(x .+ [0, 0.01])) - get_gap(sol)) / 0.01))
+prob_phase = ScheduledOptProb(eigfunc, target, GapPenalty(exps) + ScheduledPenalty((sol, x, i) -> 10^(-i)abs(get_gap(eigfunc(x .+ [0.01, 0])) - get_gap(sol)) / 0.01))
 prob_nodeg = ScheduledOptProb(eigfunc, target)
-kwargs = (; iterations=length(exps), initials=[0.5pi, 2.9], ranges=[(0.0, 1.0pi), (2.5, 3.2)])
-ss_deg = solve(prob, BestOf(best_algs()); kwargs..., MaxTime=10)
-ss_nodeg = solve(prob_nodeg, BestOf(best_algs()); kwargs..., MaxTime=5)
+kwargs = (; iterations=length(exps), initials=[0.5pi, 2.9], ranges=[(0.0, 1.0pi), (2.5, 3.2)], MaxTime=5)
+ss_deg = solve(prob, BestOf(best_algs()); kwargs...)
+ss_phase = solve(prob, BestOf(best_algs()); kwargs..., ranges=[(0.0, 3pi / 4), (2.7, 2.9)])
+ss_level = solve(prob, BestOf(best_algs()); kwargs..., ranges=[(0.0, 1.0pi), (2.9, 3.2)])
+ss_nodeg = solve(prob_nodeg, BestOf(best_algs()); kwargs...)
 ## Save data
 wsave(datadir("final_data", "$N-site-tuning.jld2"), Dict("data" => data, "ss_deg" => ss_deg, "ss_nodeg" => ss_nodeg, "εs" => εs, "δϕs" => δϕs, "fixedparams" => fixedparams, "N" => N, "res" => res, "target" => target, "bdg" => bdg))
 ## Load data
 data_dict = load(datadir("final_data", "3-site-tuning.jld2"));
 @unpack ss_deg, ss_nodeg, data, εs, δϕs = data_dict;
 ##
-sweet_spots = [[1.4, 2.81], [1.825, 2.9], [2.2, 2.945], ss_deg.sol, ss_nodeg.sol]
+# sweet_spots = [[1.4, 2.81], [1.825, 2.9], [2.2, 2.945], ss_deg.sol, ss_nodeg.sol]
+sweet_spots = [ss_phase.sol, ss_nodeg.sol, ss_level.sol]
 sweet_spot_fs = mapfunc.(sweet_spots)
 cbwidth = 10
 levelcolors = [:darkorange1, :crimson]
@@ -68,7 +73,7 @@ fig = with_theme(theme_latexfonts()) do
     markersizes = [30, 20, 30]
     f_ss = [scatter!(ax, last(ss), first(ss); marker, markersize, strokewidth=1, color) for (ss, marker, color, markersize) in zip(sweet_spots, markers, colors, markersizes)]
 
-    axislegend(ax, f_ss, ["Phase protection", "\"Topological\"", "Level protection", "Sweet spot"][1:length(f_ss)], position=:rb, labelsize=13, titlesize=13)
+    #axislegend(ax, f_ss, ["Phase protection", "\"Topological\"", "Level protection", "Sweet spot"][1:length(f_ss)], position=:rb, labelsize=13, titlesize=13)
 
     Colorbar(fig[1, 2], hmap; width=cbwidth, ticksize=cbwidth, tickalign=true, ticks=([0, 1 / 2, 1], ["0", "0.5", "1"]), ticklabelsize=15)
     Colorbar(fig[1, 2], hmap; width=cbwidth, ticksize=cbwidth, tickalign=true, ticks=(map(target, sweet_spot_fs[1:3]), ["▌  ", "➕   ", "▬   "]), ticklabelalign=(:right, :center), ticklabelsize=15, ticklabelcolor=:crimson, tickwidth=1, tickcolor=:crimson, ticklabelfont=:bold) # ["ꞁ▮▌  ", "⁺ ➕ ", "╴▬➖ "]

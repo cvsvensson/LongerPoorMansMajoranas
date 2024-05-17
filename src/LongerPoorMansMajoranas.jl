@@ -16,7 +16,7 @@ using FiniteDiff
 
 import AbstractDifferentiation as AD
 
-export c, LD_cells, LDf, MP, MPU, MPI, excgap, LDbdg, MPUqd, MPqd
+export c, LD_cells, LDf, MP, MPU, MPI, excgap, LDbdg, MPUqd, MPqd, get_gap
 export hamiltonian, cell_labels, fullsolve, reduced_similarity
 export get_sweet_spot, reflect, diffreflect, OptProb, best_algs, best_alg_names
 export Transport, solve
