@@ -32,13 +32,13 @@ function get_sweet_spot(U, V, fixedparams=fixedparams)
 end
 ##
 UViter = Iterators.product(Us, Vs)
-dataUV = @showprogress map(UV -> get_sweet_spot(UV...), UViter)
+data = @showprogress map(UV -> get_sweet_spot(UV...), UViter)
 ##
 ## Save data
-wsave(datadir("final_data", "UV-tuning.jld2"), Dict("data" => dataUV,  "Us" => Us, "Vs" => Vs, "fixedparams" => fixedparams, "N" => N, "res" => res))
-# ## Load data
-# data_dict = load(datadir("final_data", "3-site-tuning.jld2"));
-# @unpack ss_deg, ss_nodeg, data, εs, δϕs = data_dict;
+wsave(datadir("final_data", "UV-tuning.jld2"), Dict("data" => data, "Us" => Us, "Vs" => Vs, "fixedparams" => fixedparams, "N" => N, "res" => res))
+## Load data
+data_dict = load(datadir("final_data", "3-site-tuning.jld2"));
+@unpack data, Us, Vs, fixedparams, N, res = data_dict;
 ##
 # sweet_spots = [[1.4, 2.81], [1.825, 2.9], [2.2, 2.945], ss_deg.sol, ss_nodeg.sol]
 sweet_spots = [ss_phase.sol, ss_nodeg.sol, ss_level.sol]
