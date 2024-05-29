@@ -99,7 +99,7 @@ function __solve(f, alg; iterations, MaxTime=5, maxiters=1000, initials, ranges,
         prob = OptimizationProblem(f, newinitials, (n,); lb=map(first, ranges), ub=map(last, ranges))
         sol = solve(prob, alg; maxiters, maxtime, kwargs...)
     end
-    return sol
+    return collect(sol)
 end
 
 
