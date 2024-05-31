@@ -13,7 +13,7 @@ synceddir(args...) = joinpath(ENV["Dropbox"], "data", "LongerPoorMans", args...)
 data = []
 res = (50, 50)
 N = 3
-fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0.2, Δ=1, U=1, Ez=3)
+fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0, Δ=1, U=0, Ez=3)
 bdg = iszero(fixedparams.U) && iszero(fixedparams.V)
 c = bdg ? FermionBdGBasis(1:N, (:↑, :↓)) : FermionBasis(1:N, (:↑, :↓); qn=QuantumDots.parity)
 target = LD_cells
@@ -42,7 +42,7 @@ ss_nodeg = solve(prob_nodeg, BestOf(best_algs()); kwargs...)
 ## Save data
 wsave(datadir("final_data", "$N-site-tuning.jld2"), Dict("data" => data, "ss_deg" => ss_deg, "ss_nodeg" => ss_nodeg, "εs" => εs, "δϕs" => δϕs, "fixedparams" => fixedparams, "N" => N, "res" => res, "target" => target, "bdg" => bdg))
 ## Load data
-data_dict = load(datadir("final_data", "3-site-tuning.jld2"));
+data_dict = load(datadir("final_data", "$N-site-tuning.jld2"));
 @unpack ss_deg, ss_nodeg, data, εs, δϕs = data_dict;
 ##
 # sweet_spots = [[1.4, 2.81], [1.825, 2.9], [2.2, 2.945], ss_deg.sol, ss_nodeg.sol]
