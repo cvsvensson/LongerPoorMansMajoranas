@@ -102,3 +102,18 @@ fig = with_theme(theme_latexfonts()) do
 end
 ##
 save(plotsdir("scaling.png"), fig; px_per_unit=10)
+
+##
+fig = with_theme(theme_latexfonts()) do
+    fig = Figure(size=0.7 .* (600, 400), fontsize=20)
+    ax = Axis(fig[1, 1]; xlabel, ylabel="LD", yscale=log10, yticks=LogTicks(LinearTicks(3)), xticks)
+    ylims!(ax, (1e-5, 1))
+    c1 = Cycled(1)
+    c2 = Cycled(3)
+    strokewidth = 1
+    common_kwargs = (; linewidth, strokewidth, legend=false)
+    kwargs1 = (; color=c1, marker=markers[1], markersize=markersize[1], label="δE ≈ 0")
+    kwargs2 = (; color=c2, marker=markers[2], markersize=markersize[2], label="δE unconstrained")
+    f_ld_deg = scatterlines!(ax, Ns, LDs_deg; common_kwargs..., kwargs1...)
+    fig
+end
