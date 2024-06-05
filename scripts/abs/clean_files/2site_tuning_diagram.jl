@@ -11,7 +11,7 @@ synceddir(args...) = joinpath(ENV["Dropbox"], "data", "LongerPoorMans", args...)
 
 ##
 data = []
-res = (400, 400)
+res = (100, 100)
 N = 2
 fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0, Δ=1, U=0, Ez=3)
 bdg = iszero(fixedparams.U) && iszero(fixedparams.V)
@@ -35,10 +35,16 @@ prob_level = ScheduledOptProb(eigfunc, target, GapPenalty(exps) + ScheduledPenal
 prob_phase = ScheduledOptProb(eigfunc, target, GapPenalty(exps) + ScheduledPenalty((sol, x, i) -> 10^(-i)abs(get_gap(eigfunc(x .+ [0.01, 0])) - get_gap(sol)) / 0.01))
 prob_nodeg = ScheduledOptProb(eigfunc, target)
 kwargs = (; iterations=length(exps), initials=[0.5pi, 2.9], ranges=[(0.0, 1.0pi), (2.5, 3.2)], MaxTime=5)
-ss_deg = solve(prob, BestOf(best_algs()); kwargs...)
+@time ss_deg = solve(prob, BestOf(best_algs()); kwargs...)
 ss_phase = solve(prob, BestOf(best_algs()); kwargs..., ranges=[(0.0, 3pi / 4), (2.7, 2.9)])
 ss_level = solve(prob, BestOf(best_algs()); kwargs..., ranges=[(0.0, 1.0pi), (2.9, 3.2)])
 ss_nodeg = solve(prob_nodeg, BestOf(best_algs()); kwargs...)
+
+prob_NL = LongerPoorMansMajoranas.NLOptProb(eigfunc, target, (sol, x) -> get_gap(sol), (; length=length(kwargs.initials)))
+@time ss_NL = solve(prob_NL; MaxTime=kwargs.MaxTime, initials=kwargs.initials)
+prob_NL_aug = LongerPoorMansMajoranas.NLOptProb(eigfunc, target, (sol, x) -> get_gap(sol), (; alg=:AUGLAG, length=length(kwargs.initials)))
+@time ss_NL_aug = solve(prob_NL_aug; MaxTime=kwargs.MaxTime, initials=kwargs.initials)
+
 ## Save data
 wsave(datadir("final_data", "$N-site-tuning.jld2"), Dict("data" => data, "ss_deg" => ss_deg, "ss_nodeg" => ss_nodeg, "εs" => εs, "δϕs" => δϕs, "fixedparams" => fixedparams, "N" => N, "res" => res, "target" => target, "bdg" => bdg))
 ## Load data

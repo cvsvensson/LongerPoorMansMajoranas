@@ -13,6 +13,7 @@ using RuntimeGeneratedFunctions
 RuntimeGeneratedFunctions.init(@__MODULE__)
 using Statistics
 using FiniteDiff
+using NLopt
 
 import AbstractDifferentiation as AD
 

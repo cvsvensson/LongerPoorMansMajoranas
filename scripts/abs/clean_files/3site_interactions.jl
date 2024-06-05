@@ -10,7 +10,7 @@ using ProgressMeter
 synceddir(args...) = joinpath(ENV["Dropbox"], "data", "LongerPoorMans", args...)
 
 ##
-res = (50, 50)
+res = (5, 5)
 N = 3
 c = FermionBasis(1:N, (:↑, :↓); qn=QuantumDots.parity)
 Vs = range(0.0, 0.5, length=res[1])
@@ -24,12 +24,17 @@ function get_sweet_spot(U, V, fixedparams=fixedparams)
 
     eigfunc = δϕε -> diagonalize(f!(cache, δϕε), c)
     prob = ScheduledOptProb(eigfunc, LD_cells)
-    kwargs = (; iterations=4, initials=[0.5pi, 2.9], ranges=[(0.0, 1.0pi), (2 - U / 2 - V, 4 + U / 2 + V)], MaxTime=4, local_reltol=1e-3, verbosity=0, abstol=1e-3)
+    kwargs = (; iterations=4, initials=[0.5pi, 2.9], ranges=[(0.0, 1.0pi), (2 - U / 2 - V, 4 + U / 2 + V)], MaxTime=1, local_reltol=1e-6, verbosity=0, abstol=1e-6)
     exps = range(0.0, 4.0, kwargs.iterations)
     prob_deg = ScheduledOptProb(eigfunc, target, GapPenalty(exps))
-    alg = BestOf(reduce(vcat, best_algs()[1:2] for k in 1:3))
+    alg = BestOf(reduce(vcat, best_algs()[1:2] for k in 1:1))
     sol_nodeg = solve(prob, alg; kwargs...)
     sol_deg = solve(prob_deg, alg; kwargs...)
+
+    # kwargs_NL = (; length=length(kwargs.initials), tol=1e-10, ftol_rel=kwargs.local_reltol, ftol_abs=kwargs.abstol, xtol_rel=kwargs.local_reltol, xtol_abs=kwargs.abstol, alg = :AUGLAG)
+    # prob_NL_deg = LongerPoorMansMajoranas.NLOptProb(eigfunc, target, (sol, x) -> get_gap(sol), kwargs_NL)
+    # @time ss_NL_deg = solve(prob_NL_deg; MaxTime=kwargs.MaxTime, initials=kwargs.initials)
+
     return sol_deg, sol_nodeg
 end
 ##
@@ -37,7 +42,7 @@ UViter = Iterators.product(Us, Vs)
 data = @showprogress map(UV -> get_sweet_spot(UV...), UViter)
 ##
 ## Save data
-wsave(datadir("final_data", "UV-tuning3.jld2"), Dict("data" => data, "Us" => Us, "Vs" => Vs, "fixedparams" => fixedparams, "N" => N, "res" => res))
+wsave(datadir("final_data", "UV-tuning_NL.jld2"), Dict("data" => data, "Us" => Us, "Vs" => Vs, "fixedparams" => fixedparams, "N" => N, "res" => res))
 ## Load data
 data_dict = load(datadir("final_data", "3-site-tuning.jld2"));
 @unpack data, Us, Vs, fixedparams, N, res = data_dict;
@@ -89,6 +94,6 @@ fig_UV = with_theme(theme_latexfonts()) do
 end
 
 ##
-heatmap(Us, Vs, reshape(map(ss -> (ss[1].optsol.excgap), data), res...), colorrange=3 .* (-0.1, 0.1), colormap=:redsblues)
+heatmap(Us, Vs, reshape(map(ss -> log(abs((ss[1].optsol.gap)/ (ss[2].optsol.gap))), data), res...), colorrange=3 .* (-1, 1), colormap=:redsblues)
 ##
 save(plotsdir("3_site_UV_sweet_spot.png"), fig_UV; px_per_unit=10)
