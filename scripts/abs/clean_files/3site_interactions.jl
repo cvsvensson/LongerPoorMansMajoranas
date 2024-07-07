@@ -44,7 +44,7 @@ data = @showprogress map(UV -> get_sweet_spot(UV...), UViter)
 ## Save data
 wsave(datadir("final_data", "UV-tuning_NL.jld2"), Dict("data" => data, "Us" => Us, "Vs" => Vs, "fixedparams" => fixedparams, "N" => N, "res" => res))
 ## Load data
-data_dict = load(datadir("final_data", "3-site-tuning.jld2"));
+data_dict = load(datadir("final_data", "UV-tuning3.jld2"));
 @unpack data, Us, Vs, fixedparams, N, res = data_dict;
 ##
 cbwidth = 10
@@ -60,8 +60,8 @@ fig_UV = with_theme(theme_latexfonts()) do
     g = fig[1, 1] = GridLayout()
     xticks = WilkinsonTicks(3)
     yticks = WilkinsonTicks(3)#(pi * [0, 1 / 2, 1], [L"0", L"\frac{\pi}{2}", L"π"])
-    ax = Axis(g[1, 1]; xlabel=L"U_l", title="deg", ylabel=L"U_{nl}", yticks, xticks)
-    ax1 = Axis(g[1, 2]; xlabel=L"U_l", title="nodeg", ylabel=L"U_{nl}", yticks, xticks)
+    ax = Axis(g[1, 1]; xlabel=L"U_l", title=L"\mathrm{mLD}_0", ylabel=L"U_{nl}", yticks, xticks)
+    ax1 = Axis(g[1, 2]; xlabel=L"U_l", title=L"\mathrm{mLD}", ylabel=L"U_{nl}", yticks, xticks)
     # ax2 = Axis(g[1, 3]; title="δE/Δ", xlabel=L"ε", ylabel=L"δϕ", yticks=(pi * [0, 1 / 2, 1], [L"0", L"\frac{\pi}{2}", L"π"]), xticks)
     linkaxes!(ax, ax1)#, ax2)
     # linkaxes!(ax, ax1, ax2)
@@ -87,6 +87,11 @@ fig_UV = with_theme(theme_latexfonts()) do
     # Label(g[1, 2, Bottom()], " LD", tellwidth=false, tellheight=false, fontsize=20)
     Label(g[1, 3, Bottom()], " LD", tellwidth=false, tellheight=false, fontsize=20)
 
+
+    # make a), b) labels
+    Label(g[1, 1, TopLeft()], "a)", tellwidth=false, tellheight=false, fontsize=20)
+    Label(g[1, 2, TopLeft()], "b)", tellwidth=false, tellheight=false, fontsize=20)
+
     # Colorbar(g[1, 3], f_egap; width=cbwidth, ticksize=cbwidth, tickalign=true, ticks=LogTicks(WilkinsonTicks(3)), ticklabelsize)
     # colgap!(g, 1, 10)
     # colgap!(g, 2, 10)
@@ -94,6 +99,6 @@ fig_UV = with_theme(theme_latexfonts()) do
 end
 
 ##
-heatmap(Us, Vs, reshape(map(ss -> log(abs((ss[1].optsol.gap)/ (ss[2].optsol.gap))), data), res...), colorrange=3 .* (-1, 1), colormap=:redsblues)
+heatmap(Us, Vs, reshape(map(ss -> log(abs((ss[1].optsol.gap) / (ss[2].optsol.gap))), data), res...), colorrange=3 .* (-1, 1), colormap=:redsblues)
 ##
 save(plotsdir("3_site_UV_sweet_spot.png"), fig_UV; px_per_unit=10)

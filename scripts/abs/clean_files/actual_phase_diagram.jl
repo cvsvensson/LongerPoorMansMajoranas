@@ -1,6 +1,6 @@
 using DrWatson
 @quickactivate :LongerPoorMansMajoranas
-using QuantumDots, QuantumDots.BlockDiagonals, LinearAlgebra#, BlackBoxOptim
+using QuantumDots, QuantumDots.BlockDiagonals, LinearAlgebra 
 using CairoMakie
 using Symbolics
 using SkewLinearAlgebra

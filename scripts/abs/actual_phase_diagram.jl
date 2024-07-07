@@ -8,7 +8,6 @@ using StaticArrays
 using GellMannMatrices
 using Roots
 using ForwardDiff
-using TopologicalNumbers
 ##
 function getHs(k, ε, (t1, t2), (Δ1, Δ2))
     s1, c1 = sincos(k)
@@ -64,13 +63,6 @@ end
 @time energy_gap(0.5, (2exp(1im * pi / 4), 0), (1, 0))
 @code_warntype eigvals(bdgH(0.5, 0.5, (2exp(1im * pi / 4), 0), (1, 0)))[1]
 ##
-params = range(-2.0, 2.0, length=1001)
-# H₀(k, p) = bdgH(k, p[1], (p[2], p[3]), (p[4], p[5]))
-# Hk(k) = Matrix(H₀(k, (0.1, 1, 0, 1, 0)))
-# prob = BPProblem(Hk);
-prob = BPProblem((k, p) -> Matrix(bdgH(k, p[1], (p[2], 0), (1, 0))));
-@time calcPhaseDiagram(prob, range(-2.0, 2.0, length=50), range(-2.0, 2.0, length=50); plot=true)
-# sol = TopologicalNumbers.solve(prob)
 ##
 let ks = range(-pi, pi + 0.1, 100), f(k) = collect(eigvals(bdgH(k, 2, (exp(0.0 * 1im * pi / 4), 0), (1, 0)))), Df
     Df = x -> ForwardDiff.derivative(f, x)

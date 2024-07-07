@@ -114,24 +114,12 @@ struct BdGEigen{U,S,Q}
 end
 function QuantumDots.diagonalize(_H::AbstractMatrix, basis::FermionBasis)
     H = Hermitian(blockdiagonal(_H, basis))
-    dh = diagonalize(H)
     MBEigen(diagonalize(H), basis)
 end
 function fullsolve(_H, basis::FermionBasis)
-    # H = Hermitian(blockdiagonal(_H, basis))
-    # eig = QuantumDots.diagonalize(H)
     eig = diagonalize(_H, basis)
-    # sectors = blocks(eig)
-    # fullsectors = blocks(eig; full=true)
-    # oddvals = fullsectors[1].values
-    # evenvals = fullsectors[2].values
-    # oddvecs = fullsectors[1].vectors
-    # evenvecs = fullsectors[2].vectors
-    # oddvec = oddvecs[:, 1]
     majinfo = majorana_info(eig)
-    # majcoeffs = QuantumDots.majorana_coefficients(oddvec, evenvecs[:, 1], basis)
-    # mps = get_majorana_polarizations(majcoeffs, basis)
-    reduced = reduced_info(eig)#reduced_similarity(basis, oddvec, evenvecs[:, 1])
+    reduced = reduced_info(eig)
 
     return (; reduced, majinfo..., energy_info(eig)...)
 end
@@ -239,8 +227,8 @@ get_gap(nt::NamedTuple) = nt.gap
 function all_info(eig)
     (; majorana_info(eig)..., energy_info(eig)..., reduced=reduced_info(eig))
 end
-function fullsolve(_H::AbstractMatrix, basis::FermionBdGBasis; cutoff=1e-10)
-    bdgeig = QuantumDots.diagonalize(_H, basis; cutoff)
+function fullsolve(_H::AbstractMatrix, basis::FermionBdGBasis)
+    bdgeig = diagonalize(BdGMatrix(_H), basis)
     majinfo = majorana_info(bdgeig)
     reduced = reduced_info(bdgeig)
     return (; energy_info(bdgeig)..., majinfo..., reduced)

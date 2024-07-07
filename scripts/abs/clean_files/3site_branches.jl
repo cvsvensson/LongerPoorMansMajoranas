@@ -33,7 +33,7 @@ ss3_homogeneous = solve(prob_3_site_homogeneous, BestOf(best_algs()); iterations
 ss = ss3_homogeneous
 ε0 = ss.sol[2]
 initials = collect(ss.sol)
-MaxTime = 1
+MaxTime = 10
 minexcgap = ss.optsol.excgap * 0.0
 phase_data = []
 level_data = []
@@ -80,6 +80,8 @@ for δε2 in δε2s
     push!(nodeg_data, (nodeg_sol))
 end
 ##
+wsave(datadir("final_data", "branches", "$N-site.jld2"), Dict("nodeg_data" => nodeg_data, "phase_data" => phase_data, "level_data" => level_data, "δε2s" => δε2s, "fixedparams" => fixedparams, "N" => N))
+##
 function branch_plot!(ax, δε2s, datas, two_site, target)
     strokewidth = 1
     markersize = 10
@@ -96,32 +98,6 @@ function branch_plot!(ax, δε2s, datas, two_site, target)
     return figs, f_2s, f_homogeneous
 end
 
-branch_fig = let level_data = level_data
-    with_theme(theme_latexfonts()) do
-        fig = Figure(size=0.7 .* (600, 400), fontsize=15)
-        g = fig[1, 1] = GridLayout()
-        gl = fig[1, 2] = GridLayout()
-
-        xticks = LinearTicks(4)
-        ax1 = Axis(g[1, 1]; xlabel=L"δε_2/Δ", ylabel="LD", xticks)
-        ax2 = Axis(g[2, 1]; xlabel=L"δε_2/Δ", ylabel="Excitation gap", xticks)
-        linkxaxes!(ax1, ax2)
-        hidexdecorations!(ax1; ticks=true, grid=false)
-        CairoMakie.ylims!(ax1, (0, 1))
-
-        fs_ld, f_ld_2s, f_ld_homogeneous = branch_plot!(ax1, δε2s, [phase_data, level_data, nodeg_data], ss2, x -> target(x.optsol))
-        fs_excgap, f_excgap_2s, f_excgap_homogeneous = branch_plot!(ax2, δε2s, [phase_data, level_data, nodeg_data], ss2, x -> x.optsol.excgap)
-        # fs_excgap, f_excgap_2s, f_excgap_homogeneous = branch_plot!(ax3, δε2s, [phase_data, level_data, nodeg_data], homogeneous_ss2, x -> x.optsol.gap)
-
-
-        Legend(gl[1, 1],
-            [fs_ld..., f_ld_2s, f_ld_homogeneous],
-            [["Phase branch", "Level branch", "Topological"][1:length(fs_ld)]..., "Two-site", "Homogeneous"])
-        colsize!(fig.layout, 2, 100)
-        rowgap!(g, 1, 5)
-        fig
-    end
-end
 branch_fig2 = let level_data = level_data, phase_data = phase_data
     with_theme(theme_latexfonts()) do
         fig = Figure(size=0.75 .* (800, 500), fontsize=20)
