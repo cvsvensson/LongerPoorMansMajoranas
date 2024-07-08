@@ -7,7 +7,6 @@ using LaTeXStrings
 using CairoMakie
 using Accessors
 using ProgressMeter
-synceddir(args...) = joinpath(ENV["Dropbox"], "data", "LongerPoorMans", args...)
 
 ##
 res = (5, 5)
@@ -31,10 +30,6 @@ function get_sweet_spot(U, V, fixedparams=fixedparams)
     sol_nodeg = solve(prob, alg; kwargs...)
     sol_deg = solve(prob_deg, alg; kwargs...)
 
-    # kwargs_NL = (; length=length(kwargs.initials), tol=1e-10, ftol_rel=kwargs.local_reltol, ftol_abs=kwargs.abstol, xtol_rel=kwargs.local_reltol, xtol_abs=kwargs.abstol, alg = :AUGLAG)
-    # prob_NL_deg = LongerPoorMansMajoranas.NLOptProb(eigfunc, target, (sol, x) -> get_gap(sol), kwargs_NL)
-    # @time ss_NL_deg = solve(prob_NL_deg; MaxTime=kwargs.MaxTime, initials=kwargs.initials)
-
     return sol_deg, sol_nodeg
 end
 ##
@@ -50,7 +45,7 @@ data_dict = load(datadir("final_data", "UV-tuning3.jld2"));
 cbwidth = 10
 levelcolors = [:darkorange1, :crimson]
 linewidth = 1.3
-contourcolormap = cgrad(:managua, rev=true)#:vanimo#:managua
+contourcolormap = cgrad(:managua, rev=true)
 contourstyle = :dash
 cbwidth = 10
 linewidth = 1.3
@@ -62,11 +57,10 @@ fig_UV = with_theme(theme_latexfonts()) do
     yticks = WilkinsonTicks(3)#(pi * [0, 1 / 2, 1], [L"0", L"\frac{\pi}{2}", L"π"])
     ax = Axis(g[1, 1]; xlabel=L"U_l", title=L"\mathrm{mLD}_0", ylabel=L"U_{nl}", yticks, xticks)
     ax1 = Axis(g[1, 2]; xlabel=L"U_l", title=L"\mathrm{mLD}", ylabel=L"U_{nl}", yticks, xticks)
-    # ax2 = Axis(g[1, 3]; title="δE/Δ", xlabel=L"ε", ylabel=L"δϕ", yticks=(pi * [0, 1 / 2, 1], [L"0", L"\frac{\pi}{2}", L"π"]), xticks)
-    linkaxes!(ax, ax1)#, ax2)
-    # linkaxes!(ax, ax1, ax2)
+    linkaxes!(ax, ax1)
+
     hideydecorations!(ax1)
-    # hideydecorations!(ax2)
+
 
     target = x -> LD_cells(x)#x -> norm(x.reduced.two_cells)
 
@@ -81,10 +75,10 @@ fig_UV = with_theme(theme_latexfonts()) do
     # axislegend(ax1; position=:lt)
 
     ticks = ([0, 0.25, 1 / 2, 1], ["0", ".25", "0.5", "1"])
-    # ticks=([1e-3,1e-2,1e-1], ["0", "0.5", "1"])
+
     ticklabelsize = 16
     Colorbar(g[1, 3], hmap; width=cbwidth, ticksize=cbwidth, tickalign=true, ticks=LinearTicks(3), ticklabelsize)
-    # Label(g[1, 2, Bottom()], " LD", tellwidth=false, tellheight=false, fontsize=20)
+
     Label(g[1, 3, Bottom()], " LD", tellwidth=false, tellheight=false, fontsize=20)
 
 
@@ -92,9 +86,6 @@ fig_UV = with_theme(theme_latexfonts()) do
     Label(g[1, 1, TopLeft()], "(a)", tellwidth=false, tellheight=false, fontsize=20)
     Label(g[1, 2, TopLeft()], "(b)", tellwidth=false, tellheight=false, fontsize=20)
 
-    # Colorbar(g[1, 3], f_egap; width=cbwidth, ticksize=cbwidth, tickalign=true, ticks=LogTicks(WilkinsonTicks(3)), ticklabelsize)
-    # colgap!(g, 1, 10)
-    # colgap!(g, 2, 10)
     fig
 end
 

@@ -5,7 +5,6 @@ using JLD2
 using DataFrames
 using LaTeXStrings
 using CairoMakie
-synceddir(args...) = joinpath(ENV["Dropbox"], "data", "LongerPoorMans", args...)
 ## Calculate data
 function get_sweet_spots(config)
     @unpack N, fixedparams, exps, optparams, initials, ranges, MaxTime0 = config
@@ -87,12 +86,6 @@ fig = with_theme(theme_latexfonts()) do
     f_excgap_nodeg = scatterlines!(ax3, Ns, excgap_nodeg; common_kwargs..., kwargs2...)
 
 
-    # Label(fig[1, 2, Bottom()], " LD", tellwidth=false, tellheight=false, fontsize=20)
-    # Label(fig[1, 3, Bottom()], "    δE/Δ", tellwidth=false, tellheight=false, fontsize=20)
-    # colsize!(fig.layout, 3, 0.01)
-    # colgap!(fig.layout, 2, 10)
-
-    # Create a),b),c) labels in top left corners for each axislegend
     Label(fig[1, 1, TopLeft()], "(a)", tellwidth=false, tellheight=false, fontsize=20, padding=(0, 80, 0, 0))
     Label(fig[2, 1, TopLeft()], "(b)", tellwidth=false, tellheight=false, fontsize=20, padding=(0, 80, 0, 0))
     Label(fig[3, 1, TopLeft()], "(c)", tellwidth=false, tellheight=false, fontsize=20, padding=(0, 80, 0, 0))

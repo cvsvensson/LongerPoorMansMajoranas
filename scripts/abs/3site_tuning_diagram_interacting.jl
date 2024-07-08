@@ -6,7 +6,6 @@ using DataFrames
 using LaTeXStrings
 using CairoMakie
 using ProgressMeter
-synceddir(args...) = joinpath(ENV["Dropbox"], "data", "LongerPoorMans", args...)
 
 ##
 data = []

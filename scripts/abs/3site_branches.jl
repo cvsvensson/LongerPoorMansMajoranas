@@ -5,11 +5,10 @@ using CairoMakie
 using JLD2
 using DataFrames
 using LaTeXStrings
-synceddir(args...) = joinpath(ENV["Dropbox"], "data", "LongerPoorMans", args...)
 ##
 fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0, Δ=1, U=0, Ez=3)
-bdg = true# iszero(fixedparams.V) && iszero(fixedparams.U)
-target = LD_cells#bdg ? LDbdg : LD
+bdg = iszero(fixedparams.V) && iszero(fixedparams.U)
+target = LD_cells
 ## 2 site sweet  spot
 c2 = bdg ? FermionBdGBasis(1:2, (:↑, :↓)) : FermionBasis(1:2, (:↑, :↓); qn=QuantumDots.parity)
 f2, f2!, cache2 = hamfunc(Hδϕ_Hε(), c2, fixedparams)
@@ -19,8 +18,7 @@ prob_2_site = ScheduledOptProb(eigfunc, target, GapPenalty(exps))
 ss2 = solve(prob_2_site, BestOf(best_algs()); iterations=length(exps), MaxTime=1, initials=[2, 2], ranges=[(0.0, 1.0pi), (-5.0, 5.0)])
 
 ## 3 site sweet spot
-initials = [2.2, sqrt(fixedparams.Ez^2 - first(fixedparams.Δ)^2)]#2.95]
-# fixedparams = @set fixedparams.Δ = [1, -1, 1]
+initials = [2.2, sqrt(fixedparams.Ez^2 - first(fixedparams.Δ)^2)]
 c = bdg ? FermionBdGBasis(1:3, (:↑, :↓)) : FermionBasis(1:3, (:↑, :↓); qn=QuantumDots.parity)
 f, f!, cache = hamfunc(Rδϕ_Rε(), c, fixedparams);
 fh, fh!, cacheh = hamfunc(Hδϕ_Hε(), c, fixedparams);
@@ -40,41 +38,25 @@ level_data = []
 level_data_pf = []
 phase_data_pf = []
 nodeg_data = []
-δε2s = range(-0.2, 0.45, length=15) #Phase branch
-# δε2s = range(-0.2, 0.7, length=10) #level branch
+δε2s = range(-0.2, 0.45, length=15)
 for δε2 in δε2s
-    # alg = BestOf(best_algs())
     hamfunc = δϕε1 -> f!(cache, [δϕε1[1], δϕε1[2], δϕε1[2] + δε2])
     eigfunc = x -> diagonalize(hamfunc(x), c)
     prob = ScheduledOptProb(eigfunc, target, GapPenalty(exps))
     prob_nodeg = ScheduledOptProb(eigfunc, target)
-    #WARNING: This is a hack to get the phase branch
+    #WARNING: These ranges are a hack to get the different branches for these particular parameters
     phase_ranges = [(0.0, 2.0), 2.82 .+ 1 .* (-2, 0.0)] #phase branch
     level_ranges = [(0.0, 1.0pi), 2.85 .+ 1 .* (0.0, 0.3)] # level branch
     nodeg_ranges = [(0.0, 1.0pi), ε0 .+ 1 .* (-0.3, 0.3)]
-    # ranges = [(0.0, 1.0pi), ε0 .+ 2 .* (-1, 1)]
-
-    # level_penalty(pf) = ScheduledPenalty((sol, x, i) -> (i in eachindex(pf) ? pf[i] : last(pf)) * abs(get_gap_gradient(fs, x)[2]))
-    # phase_penalty(pf) = ScheduledPenalty((sol, x, i) -> (i in eachindex(pf) ? pf[i] : last(pf)) * abs(get_gap_gradient(fs, x)[1]))
-    # lp = level_penalty([10, 1, 0.1, 0.01, 0.0001])
-    # ϕp = phase_penalty([10, 1, 0.1, 0.01])
-    # prob_level_pf = ScheduledOptProb(fs, target, lp + GapPenalty(exps))
-    # prob_phase_pf = ScheduledOptProb(fs, target, ϕp + GapPenalty(exps))
 
     iterations = length(exps)
     kwargs = (; iterations, MaxTime, initials)
     # phase branch
     phase_sol = solve(prob, BestOf(best_algs()); ranges=phase_ranges, kwargs...)
     push!(phase_data, (phase_sol))
-    # phase branch with penalty
-    # phase_sol_pf = solve(prob_phase_pf, BestOf(best_algs()); ranges=nodeg_ranges, kwargs...)
-    # push!(phase_data_pf, phase_sol_pf)
-    # repeat for level branch
+    # level branch
     level_sol = solve(prob, BestOf(best_algs()); ranges=level_ranges, kwargs...)
     push!(level_data, (level_sol))
-    # repeat for level branch with penalty factor instead
-    # level_sol_pf = solve(prob_level_pf, BestOf(best_algs()); ranges=nodeg_ranges, kwargs...)
-    # push!(level_data_pf, level_sol_pf)
     # non-degenerate branch
     nodeg_sol = solve(prob_nodeg, BestOf(best_algs()); kwargs..., MaxTime=MaxTime / 3, initials=[2.0, ε0 + 0.1], ranges=nodeg_ranges)
     push!(nodeg_data, (nodeg_sol))

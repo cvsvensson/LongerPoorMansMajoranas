@@ -1,7 +1,7 @@
 using DrWatson
 @quickactivate :LongerPoorMansMajoranas
-using QuantumDots, QuantumDots.BlockDiagonals, LinearAlgebra#, BlackBoxOptim
-using Plots
+using QuantumDots, QuantumDots.BlockDiagonals, LinearAlgebra 
+using CairoMakie
 using Symbolics
 using SkewLinearAlgebra
 using StaticArrays
@@ -36,15 +36,8 @@ end
 @variables k t::Real Δ::Real Ez::Real θ::Real t1::Complex t2::Complex Δ1::Complex Δ2::Complex ε::Real δϕ::Real δε::Real
 ##
 const paulis = SVector{4}(pushfirst!(map(SMatrix{2,2}, gellmann(2)), I(2)))
-h = bdgH(k, ε, (t1, t2), (Δ1, Δ2))
-[tr(h * σ) for σ in paulis]
-h0 = substitute.(h, k => 0)
-hpi = substitute.(h, k => pi)
-[tr(h0 * σ) for σ in paulis]
-[tr(hpi * σ) for σ in paulis]
 ##
 skewH(k, ε, (t1, t2), (Δ1, Δ2); kwargs...) = QuantumDots.bdg_to_skew(bdgH(k, ε, (t1, t2), (Δ1, Δ2)); kwargs...)
-substitute.(skewH(k, ε, (t1, t2), (Δ1, Δ2); check=false), k => 0)
 function topoQ(ε, (t1, t2), (Δ1, Δ2); kwargs...)
     sign((2real(t1 + t2) + ε) * (2real(-t1 + t2) + ε))
 end
@@ -60,178 +53,70 @@ function energy_gap(ε, (t1, t2), (Δ1, Δ2))
     return min(minimum(abs ∘ f, sol2), E0)
 end
 ##
-@time energy_gap(0.5, (2exp(1im * pi / 4), 0), (1, 0))
-@code_warntype eigvals(bdgH(0.5, 0.5, (2exp(1im * pi / 4), 0), (1, 0)))[1]
-##
-##
-let ks = range(-pi, pi + 0.1, 100), f(k) = collect(eigvals(bdgH(k, 2, (exp(0.0 * 1im * pi / 4), 0), (1, 0)))), Df
-    Df = x -> ForwardDiff.derivative(f, x)
-    plot(plot(ks, stack([f(k) for k in ks])'),
-        plot(ks, stack([Df(k) for k in ks])'))
-end
-##
-@time [energy_gap(eps, (exp(1im * 1) * t, 0), (1, 0)) for eps in range(-4, 4, length=10), t in range(0, 4, length=11)];
-@profview [energy_gap(eps, (exp(1im * 1) * t, 0), (1, 0)) for eps in range(-4, 4, length=100), t in range(0, 4, length=101)];
-
-## Standard kitaev phase diagram
-let ϕ = 0.0 * pi / 10
-    ϵs = range(-4, 4, length=100)
-    ts = range(0, 4, length=101)
-    Δ = (1, 0)
-    @time data = [topoQ(eps, (exp(1im * ϕ) * t, 0), Δ; check=false) for eps in ϵs, t in ts]
-    @time data2 = [energy_gap(eps, (exp(1im * ϕ) * t, 0), Δ) for eps in ϵs, t in ts]
-    prob = BPProblem((k, p) -> Matrix(bdgH(k, p[2], (exp(1im * ϕ) * p[1], 0), Δ)))
-    @time calcPhaseDiagram(prob, ts, ϵs; plot=true)
-    p1 = heatmap(ts, ϵs, data, clims=(-1, 1), c=:redsblues, xlabel="t", ylabel="ε", title="Topological invariant")
-    p2 = heatmap(ts, ϵs, data2, clims=(0, 1), c=:viridis, xlabel="t", ylabel="ε", title="Energy gap")
-    plot(p1, p2)
-end
-## Match 1303.3304
-let t = 1, ϕ = 0.5 * pi / 2
-    ϵs = range(-4, 4, length=100)
-    Δs = range(-2, 2, length=101)
-    data = [topoQ(eps, (exp(1im * ϕ) * t, 0), (Δ, 0); check=false) for eps in ϵs, Δ in Δs]
-    data2 = [energy_gap(eps, (exp(1im * ϕ) * t, 0), (Δ, 0)) for eps in ϵs, Δ in Δs]
-    p1 = heatmap(ϵs, Δs, data', clims=(-1, 1), c=:redsblues, xlabel="ε", ylabel="Δ", title="Topological invariant")
-    p2 = heatmap(ϵs, Δs, data2', clims=(0, 1), c=:viridis, xlabel="ε", ylabel="Δ", title="Energy gap")
-    plot(p1, p2)
-end
-##
-let t = 1
-    ks = range(-pi, pi, length=100)
-    energies = [[fast_energies(bdgH(k, eps, (1, 0.0), (1.1, 0.0))) for k in ks] for eps in [-2t, 0, 2t]]
-    plot([plot(ks, stack(es)') for es in energies]...)
-end
-##
-let t = 1
-    ks = range(-pi, pi, length=100)
-    energies = [[fast_energies(bdgH(k, eps, (1im, 0.0), (1.1, 0.0))) for k in ks] for eps in [-2t, 0, 2t]]
-    plot([plot(ks, stack(es)') for es in energies]...)
-end
-##
 function effective_coeffs(; ε, t, θ, Δ, Ez, δϕ)
     Δ_aa, Δ_bb, Δ_ab, Δ_ba, t_aa, t_ab, t_ba, t_bb = LongerPoorMansMajoranas.perturbative_coeffs_homogeneous(; ε, t, θ, Δ, δϕ)
     ε0 = Ez - sqrt(Δ^2 + ε^2)
     (; E, ε_ba, ε_ab, t_nn, Δ_nn) = LongerPoorMansMajoranas.second_order_coeffs_homogeneous(; Δ_ba, Δ_ab, t_ba, t_ab, Ez, ε, Δ)
     (; ε=real(ε_ba + ε_ab) + ε0, t1=t_aa, t2=t_nn, Δ1=-conj(Δ_aa), Δ2=Δ_nn)
 end
-function topoQ(; first_order=false, ε, t, θ, Δ, Ez, δϕ)
+function topoQ(; first_order=false, ε, t, θ, Δ, Ez, δϕ, kwargs...)
     (; ε, t1, t2, Δ1, Δ2) = effective_coeffs(; ε, t, θ, Δ, Ez, δϕ)
     topoQ(ε, first_order ? (t1, 0t2) : (t1, t2), first_order ? (Δ1, 0Δ2) : (Δ1, Δ2); check=false)
 end
 function energy_gap(; first_order=false, ε, t, θ, Δ, Ez, δϕ, kwargs...)
     (; ε, t1, t2, Δ1, Δ2) = effective_coeffs(; ε, t, θ, Δ, Ez, δϕ)
-    energy_gap(ε, first_order ? (t1, 0t2) : (t1, t2), first_order ? (Δ1, 0Δ2) : (Δ1, Δ2); kwargs...)
+    energy_gap(ε, first_order ? (t1, 0t2) : (t1, t2), first_order ? (Δ1, 0Δ2) : (Δ1, Δ2))
 end
 function bdgH(k; first_order=false, ε, t, θ, Δ, Ez, δϕ)
     (; ε, t1, t2, Δ1, Δ2) = effective_coeffs(; ε, t, θ, Δ, Ez, δϕ)
     bdgH(k, ε, first_order ? (t1, 0t2) : (t1, t2), first_order ? (Δ1, 0Δ2) : (Δ1, Δ2))
 end
 ##
-fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), Δ=1, Ez=3)
-ϵs = fixedparams.Ez - 0.1 .+ 0.4 .* range(-1, 1, length=150)
-δϕs = range(0, pi, length=151)
+_data = load(datadir("final_data", "40-site-tuning.jld2"));
 ##
-dataE1 = [energy_gap(; ε, first_order=true, δϕ, fixedparams...) for ε in ϵs, δϕ in δϕs]
-dataQ1 = [topoQ(; first_order=true, ε, δϕ, fixedparams...) for ε in ϵs, δϕ in δϕs]
-dataE2 = [energy_gap(; ε, first_order=false, δϕ, fixedparams...) for ε in ϵs, δϕ in δϕs]
-dataQ2 = [topoQ(; first_order=false, ε, δϕ, fixedparams...) for ε in ϵs, δϕ in δϕs]
-prob1 = BPProblem((k, p) -> Matrix(bdgH(k; first_order=true, ε=p[2], δϕ=p[1], fixedparams...)))
-prob2 = BPProblem((k, p) -> Matrix(bdgH(k; first_order=false, ε=p[2], δϕ=p[1], fixedparams...)))
-@time dataTQ1 = calcPhaseDiagram(prob1, δϕs, ϵs; plot=true)
-@time dataTQ2 = calcPhaseDiagram(prob2, δϕs, ϵs; plot=true)
+@unpack N, fixedparams, data, εs, δϕs = _data
 ##
-p1E = heatmap(ϵs, δϕs, dataE1', clims=(1e-10, 1e-2), colorbar_scale=:identity, c=:viridis, xlabel="ε", ylabel="δϕ", title="Energy gap 1st order")
-p1Q = heatmap(ϵs, δϕs, dataQ1', clims=(-1, 1), c=:redsblues, xlabel="ε", ylabel="δϕ", title="Topological invariant")
-p2E = heatmap(ϵs, δϕs, dataE2', clims=(1e-10, 1e-2), colorbar_scale=:identity, c=:viridis, xlabel="ε", ylabel="δϕ", title="Energy gap 2nd order")
-p2Q = heatmap(ϵs, δϕs, dataQ2', clims=(-1, 1), c=:redsblues, xlabel="ε", ylabel="δϕ", title="Topological invariant")
-plot(p1E, p1Q, p2E, p2Q)
+dataE1 = [energy_gap(; ε, first_order=true, δϕ, fixedparams...) for ε in εs, δϕ in δϕs]
+dataQ1 = [topoQ(; first_order=true, ε, δϕ, fixedparams...) for ε in εs, δϕ in δϕs]
+@time dataE2 = [energy_gap(; ε, first_order=false, δϕ, fixedparams...) for ε in εs, δϕ in δϕs];
+εs_high_res = range(first(εs), last(εs), length=500)
+δϕs_high_res = range(first(δϕs), last(δϕs), length=500)
+@time dataQ2 = [topoQ(; first_order=false, ε, δϕ, fixedparams...) for ε in εs_high_res, δϕ in δϕs_high_res];
 ##
-a = FermionBdGBasis(1:5)
-c = FermionBdGBasis(1:5, (:↑, :↓))
-f, f!, cache = hamfunc(Hδϕ_Hε(), c, merge(fixedparams, (; U=0, V=0)))
-data_p1 = [(
-    begin
-        H = LongerPoorMansMajoranas.perturbative_hamiltonian_homogeneous(a, 1; ε, δϕ, fixedparams...)
-        fullsolve(H, a)
-    end
-) for ε in ϵs, δϕ in δϕs]
-data_p2 = [(
-    begin
-        H = LongerPoorMansMajoranas.perturbative_hamiltonian_homogeneous(a, 2; ε, δϕ, fixedparams...)
-        fullsolve(H, a)
-    end
-) for ε in ϵs, δϕ in δϕs]
-data_f = [(
-    begin
-        H = f!(cache, [δϕ, ε])
-        fullsolve(H, c)
-    end
-) for ε in ϵs, δϕ in δϕs]
-##
-p3 = heatmap(ϵs, δϕs, map(LDbdg, data_p2)', c=:viridis, xlabel="ε", ylabel="δϕ", title="LD, 2nd order, 20 sites", clims=(0, 1))
-p4 = heatmap(ϵs, δϕs, map(LDbdg, data_f)', c=:viridis, xlabel="ε", ylabel="δϕ", title="LD, full model, 20 sites", clims=(0, 1))
-p2nd = plot(p2E, p2Q, p3, p4, layout=(2, 2), size=(800, 500))
-##
-p3 = heatmap(ϵs, δϕs, map(LDbdg, data_p1)', c=:viridis, xlabel="ε", ylabel="δϕ", title="LD, 1st order, 20 sites")
-p4 = heatmap(ϵs, δϕs, map(LDbdg, data_f)', c=:viridis, xlabel="ε", ylabel="δϕ", title="LD, full model, 20 sites")
-p1st = plot(p1E, p1Q, p3, p4, layout=(2, 2), size=(800, 500))
-##
-savefig(p2nd, "phase_diagrams_perturbative_vs_full_20.png")
-##
-heatmap([(
-        begin
-            (; ε, t1, t2, Δ1, Δ2) = effective_coeffs(; fixedparams..., ε, δϕ)
-            real(t1 - Δ1)
-        end
-    ) for ε in ϵs, δϕ in δϕs]', c=:redsblues, clims=0.01 .* (-1, 1))
-##
+cbwidth = 10
+linewidth = 1.3
+fig_phases = with_theme(theme_latexfonts()) do
+    fig = Figure(size=0.8 .* (600, 300), fontsize=20, figure_padding=5)
 
-effective_coeffs(; ε, fixedparams..., δϕ)
-let e = ε
-    (; ε, t1, t2, Δ1, Δ2) = map(simplify, effective_coeffs(; ε=e, Ez, θ=parameter(θ, :diff), t, Δ, δϕ))
-    substitute(map(simplify, bdgQ(k, ε, (t1, t2), (Δ1, Δ2)))[1, 2], k => 0)
-end
+    g = fig[1, 1] = GridLayout()
+    xticks = WilkinsonTicks(3)
+    ax = Axis(g[1, 1]; xlabel=L"ε/Δ", title=L"N=%$N", ylabel=L"δϕ", yticks=(pi * [0, 1 / 2, 1], [L"0", L"\frac{\pi}{2}", L"π"]), xticks)
+    ax1 = Axis(g[1, 3]; xlabel=L"ε/Δ", title=L"N = \infty, \,\, H_2^\text{eff}", ylabel=L"δϕ", yticks=(pi * [0, 1 / 2, 1], [L"0", L"\frac{\pi}{2}", L"π"]), xticks)
 
-##
-f = plot()
-for s in [:t1, :t2, :Δ1, :Δ2]
-    x, y = eachrow(map(x -> x.val, stack(reim.([substitute(coeffs[s], δϕ => x) for x in range(0, sqrt(pi), 20) .^ 2]))))
-    scatter!(f, x, y, aspectratio=1, label=string(s))
-end
-f
-##
-f = plot()
-for s in [:t1, :Δ1, :t2, :Δ2]
-    ϕs = range(0, pi, 20)
-    D = Differential(δϕ)
-    # expression = expand_derivatives(D(coeffs[s]))
-    expression = expand_derivatives(angle(D(coeffs[s]))) |> simplify
-    println(expression)
-    # a = map(x -> x.val, (angle.([substitute(expression, δϕ => x) for x in ϕs])))
-    a = map(x -> x.val + 0.1rand(), (([substitute(expression, δϕ => x) for x in ϕs])))
-    plot!(f, ϕs, a, markers=true, label=string(s))
-end
-f
+    linkaxes!(ax, ax1)
+    hideydecorations!(ax1)
 
-##
+    target = x -> LD_cells(x)
 
-expression = effective_coeffs(; ε, Ez, θ=parameter(θ, :diff), t, Δ, δϕ) |> simplify
-D = Differential(δϕ)
-for s in [:t1, :Δ1]#, :t2, :Δ2]
-    expression2 = expand_derivatives(D(expression[s])) |> simplify
-    expression3 = expand_derivatives(D(angle(expression2))) |> simplify
-    println("Derivative for $s:", expression3)
+    hmap_kwargs = (; colormap=Reverse(:viridis), colorscale=identity, colorrange=(0, maximum(map(target, data))))
+    contour_kwargs = (; color=:red, levels=[0.0], linewidth=1.3)
+
+    hmap = heatmap!(ax, εs, δϕs, map(target, data)'; hmap_kwargs...)
+    f_egap = heatmap!(ax1, εs, δϕs, dataE2; colormap=Reverse(:davos), colorscale=log10, colorrange=(1e-3, 1e-1))
+    f_Q = contour!(ax1, εs_high_res, δϕs_high_res, dataQ2; contour_kwargs...)
+    l_Q = lines!(ax1, Float64[], Float64[]; label="Q=0", contour_kwargs...)
+    axislegend(ax1; position=:lt)
+
+    ticks = ([0, 0.25, 1 / 2, 1], ["0", ".25", "0.5", "1"])
+    ticklabelsize = 16
+    Colorbar(g[1, 2], hmap; width=cbwidth, ticksize=cbwidth, tickalign=true, ticks=LinearTicks(3), ticklabelsize)
+    Label(g[1, 2, Bottom()], " LD", tellwidth=false, tellheight=false, fontsize=20)
+    Label(g[1, 4, Bottom()], "   |δE/Δ|", tellwidth=false, tellheight=false, fontsize=20)
+
+    Colorbar(g[1, 4], f_egap; width=cbwidth, ticksize=cbwidth, tickalign=true, ticks=LogTicks(WilkinsonTicks(3)), ticklabelsize)
+    colgap!(g, 1, 10)
+    colgap!(g, 3, 10)
+    fig
 end
 ##
-for s in [:t1, :Δ1]#, :t2, :Δ2]
-    expression2 = expand_derivatives(D(expression[s])) |> simplify
-    Symbolics.coeff(expression2, cos(δϕ))
-    # expression3 = expand_derivatives(D(angle(expression2))) |> simplify
-    println("Derivative for $s:", expression3)
-end
-
-##
-expression2 = expand_derivatives(D(expression[:t1])) |> simplify
-nn, dd = Symbolics.arguments(Symbolics.value(real(expression2)))
-Symbolics.coeff(simplify(nn), cos(δϕ))
+save(plotsdir("phase_diagrams_$(N)_vs_inf.png"), fig_phases; px_per_unit=10)
