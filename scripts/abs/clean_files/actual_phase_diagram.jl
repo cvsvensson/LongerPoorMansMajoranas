@@ -1,6 +1,6 @@
 using DrWatson
 @quickactivate :LongerPoorMansMajoranas
-using QuantumDots, QuantumDots.BlockDiagonals, LinearAlgebra 
+using QuantumDots, QuantumDots.BlockDiagonals, LinearAlgebra
 using CairoMakie
 using Symbolics
 using SkewLinearAlgebra
@@ -91,7 +91,7 @@ fig_phases = with_theme(theme_latexfonts()) do
     g = fig[1, 1] = GridLayout()
     xticks = WilkinsonTicks(3)
     ax = Axis(g[1, 1]; xlabel=L"ε/Δ", title=L"N=%$N", ylabel=L"δϕ", yticks=(pi * [0, 1 / 2, 1], [L"0", L"\frac{\pi}{2}", L"π"]), xticks)
-    ax1 = Axis(g[1, 3]; xlabel=L"ε/Δ", title=L"N = \infty, \,\, H_2^\text{eff}", ylabel=L"δϕ", yticks=(pi * [0, 1 / 2, 1], [L"0", L"\frac{\pi}{2}", L"π"]), xticks)
+    ax1 = Axis(g[1, 3]; xlabel=L"ε/Δ", title=L"N = \infty, \,\, H^\text{eff}", ylabel=L"δϕ", yticks=(pi * [0, 1 / 2, 1], [L"0", L"\frac{\pi}{2}", L"π"]), xticks)
     # ax2 = Axis(g[1, 3]; title="δE/Δ", xlabel=L"ε", ylabel=L"δϕ", yticks=(pi * [0, 1 / 2, 1], [L"0", L"\frac{\pi}{2}", L"π"]), xticks)
     linkaxes!(ax, ax1)#, ax2)
     # linkaxes!(ax, ax1, ax2)
@@ -102,6 +102,7 @@ fig_phases = with_theme(theme_latexfonts()) do
 
     hmap_kwargs = (; colormap=Reverse(:viridis), colorscale=identity, colorrange=(0, maximum(map(target, data))))
     contour_kwargs = (; color=:red, levels=[0.0], linewidth=1.3)
+    lines_kwargs = contour_kwargs[[:color, :linewidth]]
 
     hmap = heatmap!(ax, εs, δϕs, map(target, data)'; hmap_kwargs...)
     # f_cont = contour!(ax, εs, δϕs, map(x -> x.gap, data)'; contour_kwargs...)
@@ -114,11 +115,11 @@ fig_phases = with_theme(theme_latexfonts()) do
     # f_egap = heatmap!(ax2, εs, δϕs, tanh.(100dataE2) .* dataQ2; colormap=:redsblues, colorrange=(-1, 1))
     f_egap = heatmap!(ax1, εs, δϕs, dataE2; colormap=Reverse(:davos), colorscale=log10, colorrange=(1e-3, 1e-1))
     f_Q = contour!(ax1, εs_high_res, δϕs_high_res, dataQ2; contour_kwargs...)
-    l_Q = lines!(ax1, Float64[], Float64[]; label="Q=0", contour_kwargs...)
+    # l_Q = lines!(ax1, Float64[], Float64[]; label="Q=0", lines_kwargs...)
+    l_Q = lines!(ax1, Float64[], Float64[]; label="Q switch", lines_kwargs...)
     axislegend(ax1; position=:lt)
 
     ticks = ([0, 0.25, 1 / 2, 1], ["0", ".25", "0.5", "1"])
-    # ticks=([1e-3,1e-2,1e-1], ["0", "0.5", "1"])
     ticklabelsize = 16
     Colorbar(g[1, 2], hmap; width=cbwidth, ticksize=cbwidth, tickalign=true, ticks=LinearTicks(3), ticklabelsize)
     Label(g[1, 2, Bottom()], " LD", tellwidth=false, tellheight=false, fontsize=20)

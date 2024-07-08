@@ -63,7 +63,6 @@ end
 @time energy_gap(0.5, (2exp(1im * pi / 4), 0), (1, 0))
 @code_warntype eigvals(bdgH(0.5, 0.5, (2exp(1im * pi / 4), 0), (1, 0)))[1]
 ##
-##
 let ks = range(-pi, pi + 0.1, 100), f(k) = collect(eigvals(bdgH(k, 2, (exp(0.0 * 1im * pi / 4), 0), (1, 0)))), Df
     Df = x -> ForwardDiff.derivative(f, x)
     plot(plot(ks, stack([f(k) for k in ks])'),
