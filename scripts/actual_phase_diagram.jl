@@ -106,7 +106,7 @@ fig_phases = with_theme(theme_latexfonts()) do
     f_egap = heatmap!(ax1, εs, δϕs, dataE2; colormap=Reverse(:davos), colorscale=log10, colorrange=(1e-3, 1e-1))
     f_Q = contour!(ax1, εs_high_res, δϕs_high_res, dataQ2; contour_kwargs...)
     # l_Q = lines!(ax1, Float64[], Float64[]; label="Q=0", lines_kwargs...)
-    l_Q = lines!(ax1, Float64[], Float64[]; label="Q switch", lines_kwargs...)
+    l_Q = lines!(ax1, Float64[], Float64[]; label="Q boundary", lines_kwargs...)
     axislegend(ax1; position=:lt)
 
     ticks = ([0, 0.25, 1 / 2, 1], ["0", ".25", "0.5", "1"])
@@ -114,6 +114,10 @@ fig_phases = with_theme(theme_latexfonts()) do
     Colorbar(g[1, 2], hmap; width=cbwidth, ticksize=cbwidth, tickalign=true, ticks=LinearTicks(3), ticklabelsize)
     Label(g[1, 2, Bottom()], " LD", tellwidth=false, tellheight=false, fontsize=20)
     Label(g[1, 4, Bottom()], "   |δE/Δ|", tellwidth=false, tellheight=false, fontsize=20)
+
+    # (a), (b) labels
+    Label(g[1, 1, TopLeft()], "(a)", tellwidth=false, tellheight=false, fontsize=20, padding=(0, 20, 0, 0))
+    Label(g[1, 3, TopLeft()], "(b)", tellwidth=false, tellheight=false, fontsize=20, padding=(0, 20, 0, 0))
 
     Colorbar(g[1, 4], f_egap; width=cbwidth, ticksize=cbwidth, tickalign=true, ticks=LogTicks(WilkinsonTicks(3)), ticklabelsize)
     colgap!(g, 1, 10)
