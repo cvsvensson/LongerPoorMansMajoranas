@@ -79,7 +79,7 @@ fig = with_theme(theme_latexfonts()) do
     f_gap_deg = scatterlines!(ax2, Ns, gap_deg; common_kwargs..., kwargs1...)
     f_gap_nodeg = scatterlines!(ax2, Ns, gap_nodeg; common_kwargs..., kwargs2...)
 
-    ax3 = Axis(fig[3, 1]; xlabel, ylabel=L"E_{ex}/Δ", yticks=WilkinsonTicks(3), xticks)
+    ax3 = Axis(fig[3, 1]; xlabel, ylabel=L"E_\text{ex}/Δ", yticks=WilkinsonTicks(3), xticks)
     ylims!(ax3, (0, 0.2))
     hidexdecorations!(ax2; ticks=true, grid=false)
     f_excgap_deg = scatterlines!(ax3, Ns, excgap_deg; common_kwargs..., kwargs1...)

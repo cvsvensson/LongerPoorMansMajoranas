@@ -5,6 +5,7 @@ using CairoMakie
 using JLD2
 using DataFrames
 using LaTeXStrings
+using ProgressMeter
 ##
 fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0, Δ=1, U=0, Ez=3)
 bdg = iszero(fixedparams.V) && iszero(fixedparams.U)
@@ -12,7 +13,7 @@ target = LD_cells
 ## 2 site sweet  spot
 c2 = bdg ? FermionBdGBasis(1:2, (:↑, :↓)) : FermionBasis(1:2, (:↑, :↓); qn=QuantumDots.parity)
 f2, f2!, cache2 = hamfunc(Hδϕ_Hε(), c2, fixedparams)
-exps = range(0, 4, 5)
+exps = range(-1, 5, 6)
 eigfunc = x -> diagonalize(f2!(cache2, x), c2)
 prob_2_site = ScheduledOptProb(eigfunc, target, GapPenalty(exps))
 ss2 = solve(prob_2_site, BestOf(best_algs()); iterations=length(exps), MaxTime=1, initials=[2, 2], ranges=[(0.0, 1.0pi), (-5.0, 5.0)])
@@ -31,7 +32,7 @@ ss3_homogeneous = solve(prob_3_site_homogeneous, BestOf(best_algs()); iterations
 ss = ss3_homogeneous
 ε0 = ss.sol[2]
 initials = collect(ss.sol)
-MaxTime = 10
+MaxTime = 20
 minexcgap = ss.optsol.excgap * 0.0
 phase_data = []
 level_data = []
@@ -39,7 +40,7 @@ level_data_pf = []
 phase_data_pf = []
 nodeg_data = []
 δε2s = range(-0.2, 0.45, length=15)
-for δε2 in δε2s
+@showprogress for δε2 in δε2s
     hamfunc = δϕε1 -> f!(cache, [δϕε1[1], δϕε1[2], δϕε1[2] + δε2])
     eigfunc = x -> diagonalize(hamfunc(x), c)
     prob = ScheduledOptProb(eigfunc, target, GapPenalty(exps))
@@ -50,7 +51,7 @@ for δε2 in δε2s
     nodeg_ranges = [(0.0, 1.0pi), ε0 .+ 1 .* (-0.3, 0.3)]
 
     iterations = length(exps)
-    kwargs = (; iterations, MaxTime, initials)
+    kwargs = (; iterations, MaxTime, initials, verbosity=0)
     # phase branch
     phase_sol = solve(prob, BestOf(best_algs()); ranges=phase_ranges, kwargs...)
     push!(phase_data, (phase_sol))
@@ -75,12 +76,21 @@ function branch_plot!(ax, δε2s, datas, two_site, target)
 
     figs = [CairoMakie.scatterlines!(ax, δε2s, data; color=color, marker=marker, strokewidth, markersize) for (data, color, marker) in zip(targets, colors, markers)]
     f_2s = hlines!(ax, [target(two_site)], label="2 site sweet spot", linewidth=2, linestyle=:dash, color=:black)
-    f_homogeneous = vlines!(ax, [0]; color=:red, linestyle=:dot)
+    # f_homogeneous = vlines!(ax, [0]; color=:red, linestyle=:dot)
 
-    return figs, f_2s, f_homogeneous
+    return figs, f_2s#, f_homogeneous
 end
 
+curve_labels = ["Phase branch", "Level branch", L"\mathrm{minLD} \text{ (3-site)}", L"\mathrm{minLD}_0 \text{ (2-site)}"]#, "Homogeneous"]
 branch_fig2 = let level_data = level_data, phase_data = phase_data
+
+
+    level_data = map(level_data) do d
+        d.all_sols[findfirst(sol -> abs(sol.optsol.gap) < 1e-4, d.all_sols)]
+    end
+    phase_data = map(phase_data) do d
+        d.all_sols[findfirst(sol -> abs(sol.optsol.gap) < 1e-4, d.all_sols)]
+    end
     with_theme(theme_latexfonts()) do
         fig = Figure(size=0.75 .* (800, 500), fontsize=20)
         # g = fig[1:2, 1] = GridLayout()
@@ -98,14 +108,19 @@ branch_fig2 = let level_data = level_data, phase_data = phase_data
         CairoMakie.ylims!(ax1, (0, 0.75))
         CairoMakie.ylims!(ax2, (0, pi))
         datas = [phase_data, level_data, nodeg_data]
-        fs_ld, f_ld_2s, f_ld_homogeneous = branch_plot!(ax1, δε2s, datas, ss2, x -> norm(x.gradient))
+        fs_ld, f_ld_2s = branch_plot!(ax1, δε2s, datas, ss2, x -> norm(x.gradient))
         branch_plot!(ax2, δε2s, datas, ss2, x -> (x.sol[1]))
         branch_plot!(ax3, δε2s, datas, ss2, x -> (x.sol[2]))
         # branch_plot!(ax3, δε2s, [phase_data, level_data, nodeg_data], homogeneous_ss2, x -> (x.optsol.gap))
 
+
+        Label(gl[1, 1, TopLeft()], "a)", tellwidth=false, tellheight=false, fontsize=20, padding=(0, 80, 0, 0))
+        Label(gl[2, 1, TopLeft()], "b)", tellwidth=false, tellheight=false, fontsize=20, padding=(0, 80, 0, 0))
+        Label(gr[2, 1, TopLeft()], "c)", tellwidth=false, tellheight=false, fontsize=20, padding=(0, 80, 0, 0))
+
         leg = Legend(gr[1, 1],
-            [fs_ld..., f_ld_2s, f_ld_homogeneous],
-            ["Phase branch", "Level branch", "Topological", "Two-site sweet spot", "Homogeneous"])
+            [fs_ld..., f_ld_2s],
+            curve_labels)
         leg.tellwidth = false
         # colsize!(fig.layout, 2, 150)
         # rowsize!(gr, 2, 75)
@@ -120,22 +135,32 @@ branch_fig3 = let level_data = level_data, phase_data = phase_data
         gl = fig[1:2, 1] = GridLayout()
         gr = fig[1:2, 2] = GridLayout()
         xticks = LinearTicks(4)
-
+        level_data = map(level_data) do d
+            d.all_sols[findfirst(sol -> abs(sol.optsol.gap) < 1e-4, d.all_sols)]
+        end
+        phase_data = map(phase_data) do d
+            d.all_sols[findfirst(sol -> abs(sol.optsol.gap) < 1e-4, d.all_sols)]
+        end
 
         ax1 = Axis(gl[1, 1]; xlabel=L"δε_2/Δ", ylabel="LD", xticks)
-        ax2 = Axis(gl[2, 1]; xlabel=L"δε_2/Δ", ylabel="Excitation gap", xticks)
+        ax2 = Axis(gl[2, 1]; xlabel=L"δε_2/Δ", ylabel=L"E_\text{ex}/\Delta", xticks)
         hidexdecorations!(ax1; ticks=true, grid=false)
         CairoMakie.ylims!(ax1, (0, 0.75))
         ax3 = Axis(gr[2, 1]; xlabel=L"δε_2/Δ", ylabel="δE/Δ", xticks)
         linkxaxes!(ax1, ax2, ax3)
         datas = [phase_data, level_data, nodeg_data]
-        fs, f_2s, f_homogeneous = branch_plot!(ax1, δε2s, datas, ss2, x -> target(x.optsol))
+        fs, f_2s = branch_plot!(ax1, δε2s, datas, ss2, x -> target(x.optsol))
         branch_plot!(ax2, δε2s, datas, ss2, x -> (x.optsol.excgap))
         branch_plot!(ax3, δε2s, datas, ss2, x -> (x.optsol.gap))
 
+
+        Label(gl[1, 1, TopLeft()], "a)", tellwidth=false, tellheight=false, fontsize=20, padding=(0, 80, 0, 0))
+        Label(gl[2, 1, TopLeft()], "b)", tellwidth=false, tellheight=false, fontsize=20, padding=(0, 80, 0, 0))
+        Label(gr[2, 1, TopLeft()], "c)", tellwidth=false, tellheight=false, fontsize=20, padding=(0, 80, 0, 0))
+
         leg = Legend(gr[1, 1],
-            [fs..., f_2s, f_homogeneous],
-            ["Phase branch", "Level branch", "Topological", "Two-site sweet spot", "Homogeneous"])
+            [fs..., f_2s],
+            curve_labels)
         leg.tellwidth = false
         # colsize!(fig.layout, 2, 150)
         # rowsize!(gr, 2, 75)
@@ -145,7 +170,7 @@ branch_fig3 = let level_data = level_data, phase_data = phase_data
     end
 end
 ##
-CairoMakie.save(plotsdir("sweet_spot_branches2.png"), branch_fig3; px_per_unit=10)
+CairoMakie.save(plotsdir("sweet_spot_branches.png"), branch_fig3; px_per_unit=10)
 ##
 CairoMakie.save(plotsdir("sweet_spot_branches_appendix.png"), branch_fig2; px_per_unit=10)
 
