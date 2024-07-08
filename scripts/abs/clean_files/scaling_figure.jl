@@ -93,9 +93,9 @@ fig = with_theme(theme_latexfonts()) do
     # colgap!(fig.layout, 2, 10)
 
     # Create a),b),c) labels in top left corners for each axislegend
-    Label(fig[1, 1, TopLeft()], "a)", tellwidth=false, tellheight=false, fontsize=20, padding=(0, 80, 0, 0))
-    Label(fig[2, 1, TopLeft()], "b)", tellwidth=false, tellheight=false, fontsize=20, padding=(0, 80, 0, 0))
-    Label(fig[3, 1, TopLeft()], "c)", tellwidth=false, tellheight=false, fontsize=20, padding=(0, 80, 0, 0))
+    Label(fig[1, 1, TopLeft()], "(a)", tellwidth=false, tellheight=false, fontsize=20, padding=(0, 80, 0, 0))
+    Label(fig[2, 1, TopLeft()], "(b)", tellwidth=false, tellheight=false, fontsize=20, padding=(0, 80, 0, 0))
+    Label(fig[3, 1, TopLeft()], "(c)", tellwidth=false, tellheight=false, fontsize=20, padding=(0, 80, 0, 0))
 
     rowgap!(fig.layout, 1, 4)
     rowgap!(fig.layout, 2, 4)

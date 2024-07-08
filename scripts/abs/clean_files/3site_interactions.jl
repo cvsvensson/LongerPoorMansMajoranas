@@ -89,8 +89,8 @@ fig_UV = with_theme(theme_latexfonts()) do
 
 
     # make a), b) labels
-    Label(g[1, 1, TopLeft()], "a)", tellwidth=false, tellheight=false, fontsize=20)
-    Label(g[1, 2, TopLeft()], "b)", tellwidth=false, tellheight=false, fontsize=20)
+    Label(g[1, 1, TopLeft()], "(a)", tellwidth=false, tellheight=false, fontsize=20)
+    Label(g[1, 2, TopLeft()], "(b)", tellwidth=false, tellheight=false, fontsize=20)
 
     # Colorbar(g[1, 3], f_egap; width=cbwidth, ticksize=cbwidth, tickalign=true, ticks=LogTicks(WilkinsonTicks(3)), ticklabelsize)
     # colgap!(g, 1, 10)
