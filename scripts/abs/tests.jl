@@ -19,6 +19,6 @@ using Test
 
     @test collect(sol.reduced.fermions) ≈ collect(solbdg.reduced.fermions)
     @test collect(sol.reduced.cells_bdg) ≈ collect(solbdg.reduced.cells_bdg)
-    @test (sol.mps.singles[1].mpu ≈ solbdg.mps.singles[1].mpu)
+    @test (sol.mps.dots[1].mpu ≈ solbdg.mps.dots[1].mpu)
     @test collect(sol.reduced.two_cells_bdg) ≈ collect(solbdg.reduced.two_cells_bdg)
 end

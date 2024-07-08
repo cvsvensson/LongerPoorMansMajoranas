@@ -9,8 +9,7 @@ using JLD2
 using DataFrames
 using LaTeXStrings
 synceddir(args...) = joinpath(ENV["Dropbox"], "data", "LongerPoorMans", args...)
-includet(scriptsdir("abs", "phase_plots.jl"))
-includet(scriptsdir("abs", "phase_misc.jl"))
+
 
 ##
 data = []
@@ -18,8 +17,8 @@ data = []
 initials = [[1.9, 2.9], [1, 1]]
 fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0, Δ=1, U=0.0, Ez=3)
 for N in 2:20
-    alg = BestOf(best_algs()[1:end-1])
-    target = LDbdg
+    alg = BestOf(best_algs())
+    target = LD
     #calculate_kitaev_phase_data(N; save=true, res=(50, 50))
     d = calculate_full_phase_data(N; bdg=true, save=true, res=(2, 2), fixedparams, MaxTime=10sqrt(N), target, optimize=true, exps=[-10], folder="ss_bdg_noexcgap_bestof_nodeg", final_NM=false, minexcgap=0, alg, initials=initials[1])
     # initials[1] = initials[2]
