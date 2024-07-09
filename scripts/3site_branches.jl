@@ -88,7 +88,7 @@ function select_degenerate_sweet_spot(data, cutoff)
     data.all_sols[i]
 end
 
-curve_labels = ["Phase branch", "Level branch", L"\mathrm{minLD} \text{ (3-site)}", L"\mathrm{minLD}_0 \text{ (2-site)}"]#, "Homogeneous"]
+curve_labels = ["Phase branch", "Level branch", L"\mathrm{mLD} \text{ (3-site)}", L"\mathrm{mLD}_0 \text{ (2-site)}"]#, "Homogeneous"]
 branch_fig2 = let level_data = level_data, phase_data = phase_data
 
     level_data = map(level_data) do d
