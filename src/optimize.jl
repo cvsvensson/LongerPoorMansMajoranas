@@ -9,22 +9,12 @@ end
 struct BestOf{OS}
     optimizers::OS
     function BestOf(opts::OS) where {OS}
-        if any(isa.(opts, Optim.ConjugateGradient))
-            throw(ArgumentError("ConjugateGradient is not supported in BestOf"))
-        end
         new{OS}(opts)
     end
 end
 struct NoPenalty end
 (::NoPenalty)(x...) = 0
-# struct OptProb{FS,T,PF}
-#     fullsolve::FS
-#     target::T
-#     penalty::PF
-#     function OptProb(fullsolve::FS, target::T, penalty::PF=NoPenalty()) where {FS,T,PF}
-#         new{FS,T,PF}(fullsolve, target, penalty)
-#     end
-# end
+
 struct NLOptProb{FS,T,C,P}
     eigfunc::FS
     target::T

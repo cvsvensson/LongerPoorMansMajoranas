@@ -9,7 +9,7 @@ using Accessors
 using ProgressMeter
 
 ##
-res = (25, 25)
+res = (100, 100)
 N = 3
 c = FermionBasis(1:N, (:↑, :↓); qn=QuantumDots.parity)
 Vs = range(0.0, 0.5, length=res[1])
@@ -24,9 +24,9 @@ function get_sweet_spot(U, V, fixedparams=fixedparams)
     eigfunc = δϕε -> diagonalize(f!(cache, δϕε), c)
     prob = ScheduledOptProb(eigfunc, LD_cells)
     kwargs = (; iterations=4, initials=[0.5pi, 2.9], ranges=[(0.0, 1.0pi), (2 - U - 20V, 4 + U + 20V)], MaxTime=1, local_reltol=1e-6, verbosity=0, abstol=1e-6)
-    exps = range(0.0, 4.0, kwargs.iterations)
+    exps = range(-1.0, 4.0, kwargs.iterations)
     prob_deg = ScheduledOptProb(eigfunc, target, GapPenalty(exps))
-    alg = BestOf(best_algs())#BestOf(reduce(vcat, best_algs()[1:2] for k in 1:1))
+    alg = BestOf(reduce(vcat, best_algs() for k in 1:2))
     sol_nodeg = solve(prob, alg; kwargs...)
     sol_deg = solve(prob_deg, alg; kwargs...)
 
@@ -37,7 +37,7 @@ UViter = Iterators.product(Us, Vs)
 data = @showprogress map(UV -> get_sweet_spot(UV...), UViter)
 ##
 ## Save data
-wsave(datadir("final_data", "UV-tuning2.jld2"), Dict("data" => data, "Us" => Us, "Vs" => Vs, "fixedparams" => fixedparams, "N" => N, "res" => res))
+wsave(datadir("final_data", "UV-tuning3.jld2"), Dict("data" => data, "Us" => Us, "Vs" => Vs, "fixedparams" => fixedparams, "N" => N, "res" => res))
 ## Load data
 data_dict = load(datadir("final_data", "UV-tuning.jld2"));
 @unpack data, Us, Vs, fixedparams, N, res = data_dict;
