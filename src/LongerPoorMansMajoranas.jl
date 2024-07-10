@@ -6,7 +6,7 @@ using ForwardDiff
 using Folds
 using StaticArrays
 using Symbolics
-using Optimization, OptimizationBBO, OptimizationOptimJL
+using Optimization, OptimizationBBO
 using RuntimeGeneratedFunctions
 RuntimeGeneratedFunctions.init(@__MODULE__)
 using Statistics

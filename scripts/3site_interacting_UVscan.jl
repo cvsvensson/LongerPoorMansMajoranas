@@ -9,7 +9,7 @@ using Accessors
 using ProgressMeter
 
 ##
-res = (5, 5)
+res = (25, 25)
 N = 3
 c = FermionBasis(1:N, (:↑, :↓); qn=QuantumDots.parity)
 Vs = range(0.0, 0.5, length=res[1])
@@ -23,10 +23,10 @@ function get_sweet_spot(U, V, fixedparams=fixedparams)
 
     eigfunc = δϕε -> diagonalize(f!(cache, δϕε), c)
     prob = ScheduledOptProb(eigfunc, LD_cells)
-    kwargs = (; iterations=4, initials=[0.5pi, 2.9], ranges=[(0.0, 1.0pi), (2 - U / 2 - V, 4 + U / 2 + V)], MaxTime=1, local_reltol=1e-6, verbosity=0, abstol=1e-6)
+    kwargs = (; iterations=4, initials=[0.5pi, 2.9], ranges=[(0.0, 1.0pi), (2 - U - 20V, 4 + U + 20V)], MaxTime=1, local_reltol=1e-6, verbosity=0, abstol=1e-6)
     exps = range(0.0, 4.0, kwargs.iterations)
     prob_deg = ScheduledOptProb(eigfunc, target, GapPenalty(exps))
-    alg = BestOf(reduce(vcat, best_algs()[1:2] for k in 1:1))
+    alg = BestOf(best_algs())#BestOf(reduce(vcat, best_algs()[1:2] for k in 1:1))
     sol_nodeg = solve(prob, alg; kwargs...)
     sol_deg = solve(prob_deg, alg; kwargs...)
 
@@ -37,7 +37,7 @@ UViter = Iterators.product(Us, Vs)
 data = @showprogress map(UV -> get_sweet_spot(UV...), UViter)
 ##
 ## Save data
-wsave(datadir("final_data", "UV-tuning.jld2"), Dict("data" => data, "Us" => Us, "Vs" => Vs, "fixedparams" => fixedparams, "N" => N, "res" => res))
+wsave(datadir("final_data", "UV-tuning2.jld2"), Dict("data" => data, "Us" => Us, "Vs" => Vs, "fixedparams" => fixedparams, "N" => N, "res" => res))
 ## Load data
 data_dict = load(datadir("final_data", "UV-tuning.jld2"));
 @unpack data, Us, Vs, fixedparams, N, res = data_dict;
@@ -70,13 +70,13 @@ fig_UV = let data = data
         target = x -> LD_cells(x)#x -> norm(x.reduced.two_cells)
 
         data = map(data) do (deg, nodeg)
-            (select_degenerate_sweet_spot(deg, 1e-5), nodeg)
+            (select_degenerate_sweet_spot(deg, 1e-2), nodeg)
         end
 
         contour_kwargs = (; color=:red, levels=[0.0], linewidth=1.3)
         LD_deg = reshape(map(ss -> LD_cells(ss[1].optsol), data), res...)
         LD_nodeg = reshape(map(ss -> LD_cells(ss[2].optsol), data), res...)
-        hmap_kwargs = (; colormap=Reverse(:viridis), colorscale=identity, colorrange=(0, maximum([LD_deg..., LD_nodeg...])))
+        hmap_kwargs = (; interpolate = false, colormap=Reverse(:viridis), colorscale=identity, colorrange=(0, 1.01 + 0maximum([LD_deg..., LD_nodeg...])))
         hmap = heatmap!(ax, Us, Vs, LD_deg; hmap_kwargs...)
         f_egap = heatmap!(ax1, Us, Vs, LD_nodeg; hmap_kwargs...)
         # f_Q = contour!(ax1, εs_high_res, δϕs_high_res, dataQ2; contour_kwargs...)
@@ -100,3 +100,6 @@ fig_UV = let data = data
 end
 ##
 save(plotsdir("3_site_UV_sweet_spot.png"), fig_UV; px_per_unit=10)
+
+##
+heatmap(map(d -> d[1].all_sols[3].optsol.gap, data))
