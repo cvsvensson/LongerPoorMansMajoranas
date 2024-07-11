@@ -23,7 +23,7 @@ function get_sweet_spot(U, V, fixedparams=fixedparams)
 
     eigfunc = δϕε -> diagonalize(f!(cache, δϕε), c)
     prob = ScheduledOptProb(eigfunc, LD_cells)
-    kwargs = (; iterations=4, initials=[0.5pi, 2.9], ranges=[(0.0, 1.0pi), (2 - U - 20V, 4 + U + 20V)], MaxTime=1, local_reltol=1e-6, verbosity=0, abstol=1e-6)
+    kwargs = (; iterations=4, initials=[0.5pi, 2.9], ranges=[(0.0, 1.0pi), (2 - U - V, 4 + U + V)], MaxTime=1, local_reltol=1e-6, verbosity=0, abstol=1e-6)
     exps = range(-1.0, 4.0, kwargs.iterations)
     prob_deg = ScheduledOptProb(eigfunc, target, GapPenalty(exps))
     alg = BestOf(reduce(vcat, best_algs() for k in 1:2))
@@ -37,9 +37,9 @@ UViter = Iterators.product(Us, Vs)
 data = @showprogress map(UV -> get_sweet_spot(UV...), UViter)
 ##
 ## Save data
-wsave(datadir("final_data", "UV-tuning3.jld2"), Dict("data" => data, "Us" => Us, "Vs" => Vs, "fixedparams" => fixedparams, "N" => N, "res" => res))
+wsave(datadir("UV-tuning", "UV-tuning3.jld2"), Dict("data" => data, "Us" => Us, "Vs" => Vs, "fixedparams" => fixedparams, "N" => N, "res" => res))
 ## Load data
-data_dict = load(datadir("final_data", "UV-tuning.jld2"));
+data_dict = load(datadir("UV_tuning", "UV-tuning.jld2"));
 @unpack data, Us, Vs, fixedparams, N, res = data_dict;
 ##
 function select_degenerate_sweet_spot(data, cutoff)
@@ -76,7 +76,7 @@ fig_UV = let data = data
         contour_kwargs = (; color=:red, levels=[0.0], linewidth=1.3)
         LD_deg = reshape(map(ss -> LD_cells(ss[1].optsol), data), res...)
         LD_nodeg = reshape(map(ss -> LD_cells(ss[2].optsol), data), res...)
-        hmap_kwargs = (; interpolate = false, colormap=Reverse(:viridis), colorscale=identity, colorrange=(0, 1.01 + 0maximum([LD_deg..., LD_nodeg...])))
+        hmap_kwargs = (; interpolate=false, colormap=Reverse(:viridis), colorscale=identity, colorrange=(0, 1.01 + 0maximum([LD_deg..., LD_nodeg...])))
         hmap = heatmap!(ax, Us, Vs, LD_deg; hmap_kwargs...)
         f_egap = heatmap!(ax1, Us, Vs, LD_nodeg; hmap_kwargs...)
         # f_Q = contour!(ax1, εs_high_res, δϕs_high_res, dataQ2; contour_kwargs...)
@@ -101,5 +101,72 @@ end
 ##
 save(plotsdir("3_site_UV_sweet_spot.png"), fig_UV; px_per_unit=10)
 
+## Combine different datasets
+data_dict1 = load(datadir("final_data", "UV-tuning.jld2"));
+data_dict2 = load(datadir("final_data", "UV-tuning3.jld2"));
+data1 = data_dict1["data"]
+data2 = data_dict2["data"]
+Us1 = data_dict1["Us"]
+Vs1 = data_dict1["Vs"]
+Us2 = data_dict2["Us"]
+Vs2 = data_dict2["Vs"]
+@assert Us1 ≈ Us2
+@assert Vs1 ≈ Vs2
+
+combined_deg_data = [sort(vcat(d1[1].all_sols, d2[1].all_sols), by=x -> LD_cells(x.optsol)) for (d1, d2) in zip(data1, data2)]
+combined_nodeg_data = [sort(vcat(d1[2].all_sols, d2[2].all_sols), by=x -> LD_cells(x.optsol)) for (d1, d2) in zip(data1, data2)]
 ##
-heatmap(map(d -> d[1].all_sols[3].optsol.gap, data))
+fig_UV = let data = data1
+    with_theme(theme_latexfonts()) do
+        fig = Figure(size=0.8 .* (600, 300), fontsize=20, figure_padding=5)
+
+        g = fig[1, 1] = GridLayout()
+        xticks = WilkinsonTicks(3)
+        yticks = WilkinsonTicks(3)#(pi * [0, 1 / 2, 1], [L"0", L"\frac{\pi}{2}", L"π"])
+        ax = Axis(g[1, 1]; xlabel=L"U_l/\Delta", title=L"\mathrm{mLD}_0", ylabel=L"U_\mathrm{nl}/\Delta", yticks, xticks)
+        ax1 = Axis(g[1, 2]; xlabel=L"U_l/\Delta", title=L"\mathrm{mLD}", ylabel=L"U_\mathrm{nl}/\Delta", yticks, xticks)
+        linkaxes!(ax, ax1)
+
+        hideydecorations!(ax1)
+        target = x -> LD_cells(x)#x -> norm(x.reduced.two_cells)
+        nodeg_data = map(data) do (deg, nodeg)
+            nodeg
+        end
+        deg_data = map(combined_deg_data) do d
+            i = findfirst(x -> (abs(x.optsol.gap) < 1e-4) && (x.sol[2] > 0), d)
+            d[i]
+        end
+        nodeg_data = map(combined_nodeg_data) do d
+            # i = sortperm([abs(x.sol[1]) for x in d])[1]
+            i = findfirst(x -> (abs(x.optsol.excgap) > 1e-2) && (x.sol[2] > 0), d)
+            d[i]
+        end
+
+        contour_kwargs = (; color=:red, levels=[0.0], linewidth=1.3)
+        LD_deg = reshape(map(ss -> LD_cells(ss.optsol), deg_data), res...)
+        LD_nodeg = reshape(map(ss -> LD_cells(ss.optsol), nodeg_data), res...)
+        hmap_kwargs = (; interpolate=false, colormap=Reverse(:viridis), colorscale=identity, colorrange=(0, 1.01 + 0maximum([LD_deg..., LD_nodeg...])))
+        hmap = heatmap!(ax, Us, Vs, LD_deg; hmap_kwargs...)
+        f_egap = heatmap!(ax1, Us, Vs, LD_nodeg; hmap_kwargs...)
+        # f_Q = contour!(ax1, εs_high_res, δϕs_high_res, dataQ2; contour_kwargs...)
+        # l_Q = lines!(ax1, Float64[], Float64[]; label="Q=0", contour_kwargs...)
+        # axislegend(ax1; position=:lt)
+
+        ticks = ([0, 0.25, 1 / 2, 1], ["0", ".25", "0.5", "1"])
+
+        ticklabelsize = 16
+        Colorbar(g[1, 3], hmap; width=cbwidth, ticksize=cbwidth, tickalign=true, ticks=LinearTicks(3), ticklabelsize)
+
+        Label(g[1, 3, Bottom()], " LD", tellwidth=false, tellheight=false, fontsize=20)
+
+
+        # make a), b) labels
+        Label(g[1, 1, TopLeft()], "(a)", tellwidth=false, tellheight=false, fontsize=20)
+        Label(g[1, 2, TopLeft()], "(b)", tellwidth=false, tellheight=false, fontsize=20)
+
+        fig
+    end
+end
+##
+
+save(plotsdir("3_site_UV_sweet_spot.png"), fig_UV; px_per_unit=10)
