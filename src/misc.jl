@@ -38,10 +38,8 @@ function reduced_similarity(basis, oddvec::AbstractVector, evenvec)
     two_cells = map((n1, n2) -> norm(partial_trace(δρ, sort(union(labels(n1), labels(n2)); by=last), basis), 2), space_labels, Iterators.drop(space_labels, 1))
 
     local_fermions(n) = reduce(vcat, [basis[l], basis[l]'] for l in labels(n))
-    # @time cells_bdg = QuantumDots.Dictionary(space_labels, [sqrt(sum(abs2, tr(δρ * (f1 * f2)) for (f1, f2) in Base.product(local_fermions(n), local_fermions(n)))) for n in space_labels])
-    cells_bdg = QuantumDots.Dictionary(space_labels, [norm(one_particle_density_matrix(δρ, basis, labels(n))) for n in space_labels])
 
-    # fermions_opdm = QuantumDots.Dictionary(keys(basis), [norm([tr(δρ * (f' * f)), tr(δρ * (f * f'))]) for f in basis])
+    cells_bdg = QuantumDots.Dictionary(space_labels, [norm(one_particle_density_matrix(δρ, basis, labels(n))) for n in space_labels])
 
     function two_cell_bdg(n)
         return norm(one_particle_density_matrix(δρ, basis, [labels(n)..., labels(n + 1)...]))

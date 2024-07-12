@@ -38,4 +38,4 @@ ss_phase = solve(prob, BestOf(best_algs()); kwargs..., ranges=[(0.0, 1.0pi), (2.
 ss_level = solve(prob, BestOf(best_algs()); kwargs..., ranges=[(0.5pi, 1.0pi), (2.9, 3.1)])
 ss_nodeg = solve(prob_nodeg, BestOf(best_algs()); kwargs...)
 ## Save data
-wsave(datadir("final_data", "$N-site-tuning.jld2"), Dict("data" => data, "ss_deg" => ss_deg, "ss_nodeg" => ss_nodeg, "εs" => εs, "δϕs" => δϕs, "fixedparams" => fixedparams, "N" => N, "res" => res, "target" => target, "bdg" => bdg))
+wsave(datadir("tuning_diagram", "$N-site-tuning.jld2"), Dict("data" => data, "ss_deg" => ss_deg, "ss_nodeg" => ss_nodeg, "εs" => εs, "δϕs" => δϕs, "fixedparams" => fixedparams, "N" => N, "res" => res, "target" => target, "bdg" => bdg))

@@ -49,7 +49,6 @@ zerothorder_JUexp = math2Expr(zerothorder_Wexp)
 firstorder_hopping_JUexp = math2Expr(firstorder_hopping_Wexp) |> clipboard
 secondorder_N2_nonint_JUexp = math2Expr(secondorder_N2_nonint_Wexp) |> clipboard
 secondorder_N3_nonint_JUexp = math2Expr(secondorder_N3_nonint_Wexp) |> clipboard
-#firstorder_int_JUexp = math2Expr(firstorder_int_Wexp) |> clipboard
 
 math2Expr(subs) |> clipboard
 math2Expr(subs_homogeneous_Wexp) |> clipboard

@@ -72,7 +72,7 @@ function bdgH(k; first_order=false, ε, t, θ, Δ, Ez, δϕ)
     bdgH(k, ε, first_order ? (t1, 0t2) : (t1, t2), first_order ? (Δ1, 0Δ2) : (Δ1, Δ2))
 end
 ##
-_data = load(datadir("final_data", "40-site-tuning.jld2"));
+_data = load(datadir("scaling", "40-site-tuning.jld2"));
 ##
 @unpack N, fixedparams, data, εs, δϕs = _data
 ##

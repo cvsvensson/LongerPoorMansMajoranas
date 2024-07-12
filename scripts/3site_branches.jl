@@ -63,9 +63,9 @@ nodeg_data = []
     push!(nodeg_data, (nodeg_sol))
 end
 ##
-wsave(datadir("final_data", "branches", "$N-site-branches.jld2"), Dict("nodeg_data" => nodeg_data, "phase_data" => phase_data, "level_data" => level_data, "δε2s" => δε2s, "fixedparams" => fixedparams, "N" => N, "ss2" => ss2, "ss3_homogeneous" => ss3_homogeneous))
+wsave(datadir("branches", "$N-site-branches.jld2"), Dict("nodeg_data" => nodeg_data, "phase_data" => phase_data, "level_data" => level_data, "δε2s" => δε2s, "fixedparams" => fixedparams, "N" => N, "ss2" => ss2, "ss3_homogeneous" => ss3_homogeneous))
 ## Load data
-data_dict = load(datadir("final_data", "branches", "3-site.jld2"))
+data_dict = load(datadir("branches", "3-site.jld2"))
 @unpack nodeg_data, phase_data, level_data, δε2s, fixedparams, N, ss2, ss3_homogeneous = data_dict
 ##
 function branch_plot!(ax, δε2s, datas, two_site, target)

@@ -33,7 +33,7 @@ N = collect(2:20)
 config = @dict N fixedparams exps optparams initials ranges MaxTime0
 configs = dict_list(config)
 ##
-folder = datadir("final_data", "sweet_spot_scaling_ld")
+folder = datadir("scaling", "sweet_spot_scaling_ld")
 datas = [produce_or_load(get_sweet_spots, config, folder; filename=x -> savename(x; ignores=("MaxTime0",), allowedtypes=(Int, NamedTuple)))[1] for config in configs];
 ##
 _datas = datas[1:end]
@@ -71,8 +71,8 @@ fig = with_theme(theme_latexfonts()) do
     f_ld_deg = scatterlines!(ax, Ns, LDs_deg; common_kwargs..., kwargs1...)
     f_ld_nodeg = scatterlines!(ax, Ns, LDs_nodeg; common_kwargs..., kwargs2...)
     axislegend(ax, position=:rt, labelsize=15)
-    
-    
+
+
     ax2 = Axis(fig[2, 1]; xlabel, ylabel="|δE|/Δ", yscale=log10, yticks=LogTicks(LinearTicks(4)), xticks)
     hidexdecorations!(ax; ticks=true, grid=false)
     ylims!(ax2, (1e-18, 1))

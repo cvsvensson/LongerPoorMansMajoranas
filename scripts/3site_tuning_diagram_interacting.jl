@@ -34,12 +34,12 @@ prob_nodeg = ScheduledOptProb(eigfunc, target)
 kwargs = (; iterations=length(exps), initials=[0.5pi, 2.9], ranges=[(0.0, 1.0pi), (2.5, 3.2)], MaxTime=5)
 ss_deg = solve(prob, BestOf(best_algs()); kwargs...)
 ss_phase = solve(prob, BestOf(best_algs()); kwargs..., ranges=[(0.0, 3pi / 4), (2.7, 2.9)])
-ss_level = solve(prob, BestOf(best_algs()); kwargs..., ranges=[(.4pi, 1.0pi), (2.95, 3.1)])
+ss_level = solve(prob, BestOf(best_algs()); kwargs..., ranges=[(0.4pi, 1.0pi), (2.95, 3.1)])
 ss_nodeg = solve(prob_nodeg, BestOf(best_algs()); kwargs...)
 ## Save data
-wsave(datadir("final_data", "$N-site-tuning-interacting.jld2"), Dict("data" => data, "ss_deg" => ss_deg, "ss_nodeg" => ss_nodeg, "εs" => εs, "δϕs" => δϕs, "fixedparams" => fixedparams, "N" => N, "res" => res, "target" => target, "bdg" => bdg))
+wsave(datadir("tuning_diagram", "$N-site-tuning-interacting.jld2"), Dict("data" => data, "ss_deg" => ss_deg, "ss_nodeg" => ss_nodeg, "εs" => εs, "δϕs" => δϕs, "fixedparams" => fixedparams, "N" => N, "res" => res, "target" => target, "bdg" => bdg))
 ## Load data
-data_dict = load(datadir("final_data", "$N-site-tuning-interacting.jld2"));
+data_dict = load(datadir("tuning_diagram", "$N-site-tuning-interacting.jld2"));
 @unpack ss_deg, ss_nodeg, data, εs, δϕs = data_dict;
 ##
 # sweet_spots = [[1.4, 2.81], [1.825, 2.9], [2.2, 2.945], ss_deg.sol, ss_nodeg.sol]

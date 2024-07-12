@@ -45,9 +45,9 @@ prob_NL_aug = LongerPoorMansMajoranas.NLOptProb(eigfunc, target, (sol, x) -> get
 @time ss_NL_aug = solve(prob_NL_aug; MaxTime=kwargs.MaxTime, initials=kwargs.initials)
 
 ## Save data
-wsave(datadir("final_data", "$N-site-tuning.jld2"), Dict("data" => data, "ss_deg" => ss_deg, "ss_nodeg" => ss_nodeg, "εs" => εs, "δϕs" => δϕs, "fixedparams" => fixedparams, "N" => N, "res" => res, "target" => target, "bdg" => bdg))
+wsave(datadir("tuning_diagrams", "$N-site-tuning.jld2"), Dict("data" => data, "ss_deg" => ss_deg, "ss_nodeg" => ss_nodeg, "εs" => εs, "δϕs" => δϕs, "fixedparams" => fixedparams, "N" => N, "res" => res, "target" => target, "bdg" => bdg))
 ## Load data
-data_dict = load(datadir("final_data", "$N-site-tuning.jld2"));
+data_dict = load(datadir("tuning_diagrams", "$N-site-tuning.jld2"));
 @unpack ss_deg, ss_nodeg, data, εs, δϕs = data_dict;
 ##
 # sweet_spots = [[1.4, 2.81], [1.825, 2.9], [2.2, 2.945], ss_deg.sol, ss_nodeg.sol]
