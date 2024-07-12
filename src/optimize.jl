@@ -9,22 +9,12 @@ end
 struct BestOf{OS}
     optimizers::OS
     function BestOf(opts::OS) where {OS}
-        if any(isa.(opts, Optim.ConjugateGradient))
-            throw(ArgumentError("ConjugateGradient is not supported in BestOf"))
-        end
         new{OS}(opts)
     end
 end
 struct NoPenalty end
 (::NoPenalty)(x...) = 0
-# struct OptProb{FS,T,PF}
-#     fullsolve::FS
-#     target::T
-#     penalty::PF
-#     function OptProb(fullsolve::FS, target::T, penalty::PF=NoPenalty()) where {FS,T,PF}
-#         new{FS,T,PF}(fullsolve, target, penalty)
-#     end
-# end
+
 struct NLOptProb{FS,T,C,P}
     eigfunc::FS
     target::T
@@ -156,8 +146,8 @@ cost_excgap(excgap, minexcgap, exp) = ((excgap - minexcgap) < 0 ? 1.0 + 10.0^exp
 cost_gap(gap, exp) = 10.0^(exp) * abs(gap)
 cost_reduced(reduced) = reduced^2
 
-best_algs() = [BBO_probabilistic_descent(), BBO_generating_set_search(), BBO_adaptive_de_rand_1_bin_radiuslimited(), Optim.NelderMead()]#, Metaheuristics.DE(), Optim.ConjugateGradient()]
-best_alg_names() = string.([:BBO_probabilistic_descent, :BBO_generating_set_search, :BBO_adaptive_de_rand_1_bin_radiuslimited, :Optim_NelderMead])#, :Metaheuristics_DE, :Optim_ConjugateGradient])
+best_algs() = [BBO_probabilistic_descent(), BBO_generating_set_search(), BBO_adaptive_de_rand_1_bin_radiuslimited()]
+best_alg_names() = string.([:BBO_probabilistic_descent, :BBO_generating_set_search, :BBO_adaptive_de_rand_1_bin_radiuslimited])
 
 
 get_cache(c::FermionBasis, ham) = blockdiagonal(ham, c)

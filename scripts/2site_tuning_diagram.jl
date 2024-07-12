@@ -7,11 +7,10 @@ using LaTeXStrings
 using CairoMakie
 using ChunkSplitters
 using ProgressMeter
-synceddir(args...) = joinpath(ENV["Dropbox"], "data", "LongerPoorMans", args...)
 
 ##
 data = []
-res = (100, 100)
+res = (200, 200)
 N = 2
 fixedparams = (; t=0.5, θ=parameter(2atan(5), :diff), V=0, Δ=1, U=0, Ez=3)
 bdg = iszero(fixedparams.U) && iszero(fixedparams.V)
@@ -79,10 +78,8 @@ fig = with_theme(theme_latexfonts()) do
     markersizes = [20, 20, 30]
     f_ss = [scatter!(ax, last(ss), first(ss); marker, markersize, strokewidth=2, color) for (ss, marker, color, markersize) in zip(sweet_spots[1:1], markers, colors, markersizes)]
 
-    #axislegend(ax, f_ss, ["Phase protection", "\"Topological\"", "Level protection", "Sweet spot"][1:length(f_ss)], position=:rb, labelsize=13, titlesize=13)
-
     Colorbar(fig[1, 2], hmap; width=cbwidth, ticksize=cbwidth, tickalign=true, ticks=([0, 1 / 2, 1], ["0", "0.5", "1"]), ticklabelsize=15)
-    #Colorbar(fig[1, 2], hmap; width=cbwidth, ticksize=cbwidth, tickalign=true, ticks=(map(target, sweet_spot_fs[1:3]), ["▌  ", "➕   ", "▬   "]), ticklabelalign=(:right, :center), ticklabelsize=15, ticklabelcolor=:crimson, tickwidth=1, tickcolor=:crimson, ticklabelfont=:bold) # ["ꞁ▮▌  ", "⁺ ➕ ", "╴▬➖ "]
+
     Colorbar(fig[1, 3], f_econtour; width=cbwidth, ticksize=cbwidth, tickalign=true, ticks=WilkinsonTicks(3), ticklabelsize=15)
 
     Label(fig[1, 2, Bottom()], " LD", tellwidth=false, tellheight=false, fontsize=20)
